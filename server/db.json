@@ -5,28 +5,33 @@
   },
   "questions": [
     {
-      "id": "yski1q6b",
+      "id": "3pwunh54",
+      "text": "where do japanese liove",
+      "answer": "Japan"
+    },
+    {
+      "id": "slsvid7l",
+      "text": "where do pinoys live",
+      "answer": "Philippines"
+    },
+    {
+      "id": "acclldiu",
+      "text": "where do indogs live",
+      "answer": "Indonesia"
+    },
+    {
+      "id": "l47p1itg",
       "text": "where do japan japan lives",
       "answer": "Japan"
     },
     {
-      "id": "fhg4m1sk",
-      "text": "where do chingchong lives",
-      "answer": "China"
-    },
-    {
-      "id": "muc9ht8v",
-      "text": "where do scammer lives",
+      "id": "pa2ecryv",
+      "text": "where do indians live",
       "answer": "India"
-    },
-    {
-      "id": "6o6mhqfq",
-      "text": "where do tangalogs lives",
-      "answer": "Philippines"
     }
   ],
   "admin": {
     "username": "admin",
-    "password": "password"
+    "password": "admin123"
   }
 }
