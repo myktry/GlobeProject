@@ -2,6 +2,7 @@
    Arcade Font (Press Start 2P)
    - If you prefer to keep Inter for body, ping me and I'll scope this.
 =========================== */
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
 
 /* ===========================
@@ -74,6 +75,16 @@ body {
   color: white;
   overflow-x: hidden;
   letter-spacing: 0.3px; /* tiny spacing suits pixel font */
+}
+
+/* Hide number input spin buttons for a cleaner UI */
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type=number] {
+  -moz-appearance: textfield; /* Firefox */
 }
 
 /* Utility color guards */

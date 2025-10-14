@@ -1,0 +1,32 @@
+{
+  "settings": {
+    "rounds": 3,
+    "attempts": 3
+  },
+  "questions": [
+    {
+      "id": "yski1q6b",
+      "text": "where do japan japan lives",
+      "answer": "Japan"
+    },
+    {
+      "id": "fhg4m1sk",
+      "text": "where do chingchong lives",
+      "answer": "China"
+    },
+    {
+      "id": "muc9ht8v",
+      "text": "where do scammer lives",
+      "answer": "India"
+    },
+    {
+      "id": "6o6mhqfq",
+      "text": "where do tangalogs lives",
+      "answer": "Philippines"
+    }
+  ],
+  "admin": {
+    "username": "admin",
+    "password": "password"
+  }
+}

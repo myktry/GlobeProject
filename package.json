@@ -4,10 +4,12 @@
   "version": "1.0.0",
   "description": "Interactive 3D World Globe with Country Information",
   "main": "electron/main.js",
-  "homepage": "./",
+  "homepage": "http://./",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently \"npm:dev:client\" \"npm:dev:server\"",
+    "dev:client": "vite",
+    "dev:server": "node server/index.js",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
@@ -19,7 +21,10 @@
   "dependencies": {
     "@react-three/drei": "^10.7.4",
     "@react-three/fiber": "^9.3.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
     "d3-geo": "^3.1.1",
+    "express": "^5.1.0",
     "lucide-react": "^0.542.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
@@ -75,5 +80,15 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
     }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rehinaxz/ICE415-Project.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/rehinaxz/ICE415-Project/issues"
   }
 }

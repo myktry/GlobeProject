@@ -4,11 +4,8 @@ import { Link } from "react-router-dom";
 import InteractiveGlobe from "../components/InteractiveGlobe"; // <-- your globe
 // We won't use CountryInfo here; game only needs clicks
 
-// 10 round game, two attempts per question
-const TOTAL_ROUNDS = 3;
-
-// Small question bank using demonyms
-const QUESTIONS = [
+// Optional local questions (used only if backend is unreachable)
+const LOCAL_DEMO_QUESTIONS = [
   { prompt: "Which country do Filipinos live?", answer: "Philippines" },
   { prompt: "Where do Japanese live?", answer: "Japan" },
   { prompt: "Which country do Brazilians live?", answer: "Brazil" },
@@ -22,6 +19,12 @@ export default function PlayGame() {
   // ==== reuse your GlobePage data shape ====
   const [countries, setCountries] = useState({ features: [] });
   const [loading, setLoading] = useState(true);
+  const [settings, setSettings] = useState({ rounds: 3, attempts: 2 });
+  const [questionBank, setQuestionBank] = useState([]);
+  const [backendReached, setBackendReached] = useState(true);
+
+  // Effective rounds cannot exceed available questions
+  const totalRounds = Math.min(settings.rounds, Array.isArray(questionBank) ? questionBank.length : 0);
 
   // ==== game state ====
   const [q, setQ] = useState(null);      // current question
@@ -30,6 +33,40 @@ export default function PlayGame() {
   const [score, setScore] = useState(0);
   const [state, setState] = useState("loading"); // loading | asking | wrong | correct | locked | summary
   const [showCorrect, setShowCorrect] = useState(false);
+  const lastQuestionIndexRef = useRef(-1);
+
+  // Normalize country names and handle common aliases
+  function normalizeCountryName(name) {
+    if (!name) return '';
+    const base = name
+      .toString()
+      .normalize('NFKD')
+      .replace(/[\u0300-\u036f]/g, '') // strip accents
+      .toLowerCase()
+      .replace(/[^a-z\s]/g, ' ') // remove punctuation/symbols
+      .replace(/\s+/g, ' ') // collapse spaces
+      .trim();
+    const aliases = {
+      'united states of america': 'united states',
+      'usa': 'united states',
+      'us': 'united states',
+      'u s a': 'united states',
+      'u s': 'united states',
+      'united kingdom of great britain and northern ireland': 'united kingdom',
+      'uk': 'united kingdom',
+      'u k': 'united kingdom',
+      'england': 'united kingdom',
+      'ivory coast': 'cote d ivoire',
+      'cote d’ivoire': 'cote d ivoire',
+      'cote d ivoire': 'cote d ivoire',
+      'swaziland': 'eswatini',
+      'east timor': 'timor leste',
+      'burma': 'myanmar',
+      'vatican city': 'holy see',
+      'russia': 'russian federation'
+    };
+    return aliases[base] || base;
+  }
 
   // Handle correct state and auto-proceed to next question after 2 seconds
   useEffect(() => {
@@ -48,10 +85,39 @@ export default function PlayGame() {
     console.log("Game state changed to:", state);
   }, [state]);
 
-  // ---- data fetch (copied pattern from your GlobePage; simplified) ----
+  // ---- data fetch (globe + settings + questions) ----
   useEffect(() => {
-    const fetchCountries = async () => {
+    const fetchAll = async () => {
       try {
+        // settings
+        try {
+          const s = await fetch('/api/settings').then(r => r.ok ? r.json() : null);
+          if (s && typeof s.rounds === 'number' && typeof s.attempts === 'number') {
+            setSettings({ rounds: s.rounds, attempts: s.attempts });
+          }
+        } catch (_) {}
+
+        // questions
+        try {
+          const respQs = await fetch('/api/questions');
+          if (respQs.ok) {
+            setBackendReached(true);
+            const qs = await respQs.json();
+            const normalized = Array.isArray(qs)
+              ? qs.map(q => ({ prompt: q.text ?? '', answer: q.answer ?? '' }))
+                  .filter(q => q.prompt && q.answer)
+              : [];
+            setQuestionBank(normalized);
+          } else {
+            setBackendReached(false);
+            setQuestionBank(LOCAL_DEMO_QUESTIONS);
+          }
+        } catch (_) {
+          setBackendReached(false);
+          setQuestionBank(LOCAL_DEMO_QUESTIONS);
+        }
+
+        // globe data
         const geoJsonResponse = await fetch(
           "https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world.geojson"
         );
@@ -109,23 +175,38 @@ export default function PlayGame() {
         startGame();
       }
     };
-    fetchCountries();
+    fetchAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ---- game control ----
   function randomQuestion() {
-    return QUESTIONS[Math.floor(Math.random() * QUESTIONS.length)];
+    if (!Array.isArray(questionBank) || questionBank.length === 0) return null;
+    if (questionBank.length === 1) {
+      lastQuestionIndexRef.current = 0;
+      return questionBank[0];
+    }
+    let idx = Math.floor(Math.random() * questionBank.length);
+    if (idx === lastQuestionIndexRef.current) {
+      idx = (idx + 1) % questionBank.length;
+    }
+    lastQuestionIndexRef.current = idx;
+    return questionBank[idx];
   }
   function startGame() {
     setScore(0);
     setRound(1);
     setAttempts(0);
-    setQ(randomQuestion());
-    setState("asking");
+    if (questionBank.length > 0) {
+      setQ(randomQuestion());
+      setState("asking");
+    } else {
+      setQ(null);
+      setState("asking");
+    }
   }
   function nextQuestion() {
-    if (round >= TOTAL_ROUNDS) {
+    if (round >= totalRounds) {
       setState("summary");
       return;
     }
@@ -152,7 +233,7 @@ export default function PlayGame() {
       "";
 
     const correct =
-      clickedName.toLowerCase() === q.answer.toLowerCase();
+      normalizeCountryName(clickedName) === normalizeCountryName(q.answer);
 
     if (correct) {
       setScore((s) => s + 1);
@@ -161,7 +242,7 @@ export default function PlayGame() {
     }
     setAttempts((a) => {
       const n = a + 1;
-      if (n >= 2) setState("locked");
+      if (n >= settings.attempts) setState("locked");
       else setState("wrong");
       return n;
     });
@@ -210,7 +291,7 @@ export default function PlayGame() {
             <div className="grid grid-cols-3 gap-8 max-w-4xl mx-auto">
               <div className="flex items-center gap-3 px-6 py-3 rounded-lg bg-white/10 justify-center">
                 <span className="text-purple-300 font-semibold">Round:</span>
-                <span className="text-white font-bold text-lg">{round}/{TOTAL_ROUNDS}</span>
+                <span className="text-white font-bold text-lg">{round}/{totalRounds}</span>
               </div>
               <div className="flex items-center gap-3 px-6 py-3 rounded-lg bg-white/10 justify-center">
                 <span className="text-green-300 font-semibold">Score:</span>
@@ -218,7 +299,7 @@ export default function PlayGame() {
               </div>
               <div className="flex items-center gap-3 px-6 py-3 rounded-lg bg-white/10 justify-center">
                 <span className="text-yellow-300 font-semibold">Attempts:</span>
-                <span className="text-white font-bold text-lg">{Math.max(0, 2 - attempts)}</span>
+                <span className="text-white font-bold text-lg">{Math.max(0, settings.attempts - attempts)}</span>
               </div>
             </div>
           </div>
@@ -234,7 +315,15 @@ export default function PlayGame() {
           <div className="px-6 py-8 bg-gradient-to-r from-black/30 via-black/20 to-black/30 backdrop-blur-md">
             <div className="text-center">
               <div className="text-2xl text-white font-bold tracking-wide leading-relaxed">
-                {loading ? "Loading question…" : (q?.prompt || "Loading…")}
+                {loading
+                  ? "Loading question…"
+                  : questionBank.length === 0
+                    ? (
+                      <span>
+                        No questions available at the moment.
+                      </span>
+                    )
+                    : (q?.prompt || "Loading…")}
               </div>
               {/* Correct feedback that disappears after 3 seconds */}
               {showCorrect && (
@@ -254,46 +343,46 @@ export default function PlayGame() {
             <h3 className="text-2xl font-bold">Game Over</h3>
             <p className="mt-2">Final Score</p>
             <div className="text-4xl font-extrabold my-2">
-              {score}/{TOTAL_ROUNDS}
+              {score}/{totalRounds}
             </div>
             {/* Play Again Button - Below Final Score */}
-            <button
-              onClick={startGame}
-              style={{
-          padding: "14px 28px",
-          borderRadius: 16,
-          fontWeight: 800,
-          fontSize: 18,
-          letterSpacing: 0.5,
-          textDecoration: "none",
-          display: "inline-block",
-          margin: 8,
-          cursor: "pointer",
-          background: "#7c3aed",
-          color: "#fff",
-          border: "2.5px solid #4c1d95",
-          boxShadow: "0 0 8px 2px #7c3aed, 0 0 16px 4px #7c3aed99, 0 0 2px #fff",
-          outline: "none",
-          transition: "background 0.3s cubic-bezier(.4,0,.2,1), color 0.3s cubic-bezier(.4,0,.2,1), border-color 0.3s cubic-bezier(.4,0,.2,1), box-shadow 0.4s cubic-bezier(.4,0,.2,1), transform .18s cubic-bezier(.4,0,.2,1)",
-        }}
-        onMouseEnter={e => {
-          e.currentTarget.style.background = "#a78bfa";
-          e.currentTarget.style.border = "2.5px solid #5b21b6";
-          e.currentTarget.style.boxShadow = "0 0 16px 4px #a78bfa, 0 0 32px 8px #a78bfaBB, 0 0 8px 2px #fff";
-          e.currentTarget.style.transform = "scale(1.07)";
-        }}
-        onMouseLeave={e => {
-          e.currentTarget.style.background = "#7c3aed";
-          e.currentTarget.style.border = "2.5px solid #4c1d95";
-          e.currentTarget.style.boxShadow = "0 0 8px 2px #7c3aed, 0 0 16px 4px #7c3aed99, 0 0 2px #fff";
-          e.currentTarget.style.transform = "scale(1)";
-        }}
-        tabIndex={0}
-        >
-              Play Again
-            </button>
+          <button
+            onClick={startGame}
+                style={{
+                  padding: "14px 28px",
+                  borderRadius: 16,
+                  fontWeight: 800,
+                  fontSize: 18,
+                  letterSpacing: 0.5,
+                  textDecoration: "none",
+                  display: "inline-block",
+                  margin: 8,
+                  cursor: "pointer",
+                  background: "#7c3aed",
+                  color: "#fff",
+                  border: "2.5px solid #4c1d95",
+                  boxShadow: "0 0 8px 2px #7c3aed, 0 0 16px 4px #7c3aed99, 0 0 2px #fff",
+                  outline: "none",
+                  transition: "background 0.3s cubic-bezier(.4,0,.2,1), color 0.3s cubic-bezier(.4,0,.2,1), border-color 0.3s cubic-bezier(.4,0,.2,1), box-shadow 0.4s cubic-bezier(.4,0,.2,1), transform .18s cubic-bezier(.4,0,.2,1)",
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = "#a78bfa";
+                  e.currentTarget.style.border = "2.5px solid #5b21b6";
+                  e.currentTarget.style.boxShadow = "0 0 16px 4px #a78bfa, 0 0 32px 8px #a78bfaBB, 0 0 8px 2px #fff";
+                  e.currentTarget.style.transform = "scale(1.07)";
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = "#7c3aed";
+                  e.currentTarget.style.border = "2.5px solid #4c1d95";
+                  e.currentTarget.style.boxShadow = "0 0 8px 2px #7c3aed, 0 0 16px 4px #7c3aed99, 0 0 2px #fff";
+                  e.currentTarget.style.transform = "scale(1)";
+                }}
+                tabIndex={0}
+              >
+                Play Again
+              </button>
           </div>
-      </div>
+        </div>
       ) : null}
 
 
@@ -322,6 +411,12 @@ export default function PlayGame() {
                 🔄 Try Again
               </button>
             )}
+            {state === "correct" && (
+              <button onClick={nextQuestion}
+                      className="px-10 py-4 rounded-lg bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 transition-all duration-300 text-white font-bold text-lg shadow-lg hover:shadow-xl border border-violet-500 hover:border-violet-400 transform hover:scale-105 active:scale-95">
+                ➡️ Next
+              </button>
+            )}
             {state === "locked" && (
               <button onClick={nextQuestion}
                       className="px-10 py-4 rounded-lg bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 transition-all duration-300 text-white font-bold text-lg shadow-lg hover:shadow-xl border border-violet-500 hover:border-violet-400 transform hover:scale-105 active:scale-95">
@@ -342,7 +437,7 @@ export default function PlayGame() {
           </div>
         </>
       )}
-        </div>
+    </div>
       </div>
 
     </>

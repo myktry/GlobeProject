@@ -64,6 +64,33 @@ const Button = ({ to, children }) => {
 const LandingPage = () => (
   <Page>
     <Starfield />
+    {/* Hidden admin link in the upper-right corner */}
+    <Link
+  to="/admin/login"
+  aria-label="Open admin panel"
+  style={{
+    position: "fixed",
+    top: 8,
+    right: 8,
+    width: 40,
+    height: 40,
+    opacity: 0,
+    zIndex: 50,
+    borderRadius: 8,
+    outline: "none",
+  }}
+
+      onFocus={(e) => {
+        // Make it visible on keyboard focus for accessibility
+        e.currentTarget.style.opacity = 0.6;
+        e.currentTarget.style.background = "#22c55e33";
+      }}
+      onBlur={(e) => {
+        e.currentTarget.style.opacity = 0;
+        e.currentTarget.style.background = "transparent";
+      }}
+    />
+
     <div style={{ position: "relative", zIndex: 1, padding: "64px 24px" }}>
       <header style={{ textAlign: "center", marginTop: 40 }}>
         <h1
