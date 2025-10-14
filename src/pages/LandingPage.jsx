@@ -66,19 +66,19 @@ const LandingPage = () => (
     <Starfield />
     {/* Hidden admin link in the upper-right corner */}
     <Link
-  to="/admin/login"
-  aria-label="Open admin panel"
-  style={{
-    position: "fixed",
-    top: 8,
-    right: 8,
-    width: 40,
-    height: 40,
-    opacity: 0,
-    zIndex: 50,
-    borderRadius: 8,
-    outline: "none",
-  }}
+      to="/admin/login"
+      aria-label="Open admin panel"
+      style={{
+        position: "fixed",
+        top: 8,
+        right: 8,
+        width: 40,
+        height: 40,
+        opacity: 0,
+        zIndex: 50,
+        borderRadius: 8,
+        outline: "none",
+      }}
 
       onFocus={(e) => {
         // Make it visible on keyboard focus for accessibility
@@ -133,8 +133,8 @@ const LandingPage = () => (
           flexWrap: "wrap",
         }}
       >
-  <Button to="/explore">Explore Countries</Button>
-  <Button to="/play">Play Game</Button>
+        <Button to="/explore">Explore Countries</Button>
+        <Button to="/play">Play Game</Button>
       </div>
     </div>
   </Page>

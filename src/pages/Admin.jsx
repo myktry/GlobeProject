@@ -175,384 +175,303 @@ const Admin = () => {
         </header>
 
         <section
-  style={{
-    marginTop: 24,
-    display: "grid",
-    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-    gap: 16,
-  }}
->
-  {/* LEFT COLUMN */}
-  <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-    {/* SETTINGS CARD */}
-    <div
-      style={{
-        background: "#0b1224",
-        border: "1px solid #1f2a44",
-        borderRadius: 12,
-        padding: 16,
-      }}
-    >
-      <h2 style={{ fontSize: 18, fontWeight: 800, marginBottom: 12 }}>
-        Settings
-      </h2>
-      <form
-        onSubmit={saveSettings}
-        style={{ display: "grid", gap: 8, maxWidth: 380 }}
-      >
-        <label style={{ color: "#cbd5e1", fontSize: 13 }}>Rounds</label>
-        <input
-          type="number"
-          inputMode="numeric"
-          min={1}
-          step={1}
-          value={editSettings.rounds}
-          onChange={(e) => {
-            const raw = e.target.value;
-            if (raw === "") {
-              setEditSettings((s) => ({ ...s, rounds: "" }));
-              return;
-            }
-            const cleaned = raw.replace(/^0+(?=\d)/, "");
-            if (/^\d+$/.test(cleaned)) {
-              setEditSettings((s) => ({ ...s, rounds: parseInt(cleaned, 10) }));
-            }
-          }}
-          onBlur={(e) => {
-            const raw = e.target.value;
-            const n = Math.max(1, parseInt(raw || "1", 10));
-            setEditSettings((s) => ({ ...s, rounds: n }));
-          }}
-          onKeyDown={(e) => {
-            if (["e", "E", "+", "-", "."].includes(e.key)) e.preventDefault();
-          }}
-          placeholder="Rounds"
           style={{
-            padding: 8,
-            borderRadius: 8,
-            border: "1px solid #263455",
-            background: "#0a1020",
-            color: "#e5e7eb",
+            marginTop: 24,
+            display: "grid",
+            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+            gap: 16,
           }}
-        />
-        <label style={{ color: "#cbd5e1", fontSize: 13 }}>Attempts</label>
-        <input
-          type="number"
-          inputMode="numeric"
-          min={1}
-          step={1}
-          value={editSettings.attempts}
-          onChange={(e) => {
-            const raw = e.target.value;
-            if (raw === "") {
-              setEditSettings((s) => ({ ...s, attempts: "" }));
-              return;
-            }
-            const cleaned = raw.replace(/^0+(?=\d)/, "");
-            if (/^\d+$/.test(cleaned)) {
-              setEditSettings((s) => ({
-                ...s,
-                attempts: parseInt(cleaned, 10),
-              }));
-            }
-          }}
-          onBlur={(e) => {
-            const raw = e.target.value;
-            const n = Math.max(1, parseInt(raw || "1", 10));
-            setEditSettings((s) => ({ ...s, attempts: n }));
-          }}
-          onKeyDown={(e) => {
-            if (["e", "E", "+", "-", "."].includes(e.key)) e.preventDefault();
-          }}
-          placeholder="Attempts"
-          style={{
-            padding: 8,
-            borderRadius: 8,
-            border: "1px solid #263455",
-            background: "#0a1020",
-            color: "#e5e7eb",
-          }}
-        />
-
-        {(() => {
-          const invalid =
-            !editSettings.rounds ||
-            !editSettings.attempts ||
-            (Array.isArray(questions) &&
-              Number(editSettings.rounds) > questions.length);
-          const bg = justSavedSettings
-            ? "#065f46"
-            : invalid
-            ? "#155e75"
-            : "#10b981";
-          const cursor = invalid || savingSettings ? "not-allowed" : "pointer";
-          const opacity = invalid || savingSettings ? 0.7 : 1;
-          const label = savingSettings
-            ? "Saving…"
-            : justSavedSettings
-            ? "Saved"
-            : "Save Settings";
-          const title = !editSettings.rounds || !editSettings.attempts
-            ? "Please enter both values"
-            : Array.isArray(questions) &&
-              Number(editSettings.rounds) > questions.length
-            ? `Rounds cannot exceed number of questions (${questions.length})`
-            : undefined;
-          return (
-            <button
-              type="submit"
-              disabled={invalid || savingSettings}
-              title={title}
+        >
+          {/* LEFT COLUMN */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            {/* SETTINGS CARD */}
+            <div
               style={{
-                background: bg,
-                border: "1px solid #065f46",
-                color: "#06261f",
-                fontWeight: 800,
-                padding: "8px 10px",
-                borderRadius: 10,
-                marginTop: 6,
-                cursor,
-                opacity,
+                background: "#0b1224",
+                border: "1px solid #1f2a44",
+                borderRadius: 12,
+                padding: 16,
               }}
             >
-              {label}
-            </button>
-          );
-        })()}
-      </form>
-      <div style={{ marginTop: 12, color: "#93c5fd", fontSize: 14 }}>
-        Current: {settings.rounds} rounds, {settings.attempts} attempts
-      </div>
-      {Array.isArray(questions) && (
-        <div style={{ marginTop: 6, color: "#cbd5e1", fontSize: 12 }}>
-          Available questions: {questions.length}
-        </div>
-      )}
-    </div>
+              <h2 style={{ fontSize: 18, fontWeight: 800, marginBottom: 12 }}>
+                Settings
+              </h2>
+              <form
+                onSubmit={saveSettings}
+                style={{ display: "grid", gap: 8, maxWidth: 380 }}
+              >
+                <label style={{ color: "#cbd5e1", fontSize: 13 }}>Rounds</label>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  step={1}
+                  value={editSettings.rounds}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    if (raw === "") {
+                      setEditSettings((s) => ({ ...s, rounds: "" }));
+                      return;
+                    }
+                    const cleaned = raw.replace(/^0+(?=\d)/, "");
+                    if (/^\d+$/.test(cleaned)) {
+                      setEditSettings((s) => ({ ...s, rounds: parseInt(cleaned, 10) }));
+                    }
+                  }}
+                  onBlur={(e) => {
+                    const raw = e.target.value;
+                    const n = Math.max(1, parseInt(raw || "1", 10));
+                    setEditSettings((s) => ({ ...s, rounds: n }));
+                  }}
+                  onKeyDown={(e) => {
+                    if (["e", "E", "+", "-", "."].includes(e.key)) e.preventDefault();
+                  }}
+                  placeholder="Rounds"
+                  style={{
+                    padding: 8,
+                    borderRadius: 8,
+                    border: "1px solid #263455",
+                    background: "#0a1020",
+                    color: "#e5e7eb",
+                  }}
+                />
+                <label style={{ color: "#cbd5e1", fontSize: 13 }}>Attempts</label>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  step={1}
+                  value={editSettings.attempts}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    if (raw === "") {
+                      setEditSettings((s) => ({ ...s, attempts: "" }));
+                      return;
+                    }
+                    const cleaned = raw.replace(/^0+(?=\d)/, "");
+                    if (/^\d+$/.test(cleaned)) {
+                      setEditSettings((s) => ({
+                        ...s,
+                        attempts: parseInt(cleaned, 10),
+                      }));
+                    }
+                  }}
+                  onBlur={(e) => {
+                    const raw = e.target.value;
+                    const n = Math.max(1, parseInt(raw || "1", 10));
+                    setEditSettings((s) => ({ ...s, attempts: n }));
+                  }}
+                  onKeyDown={(e) => {
+                    if (["e", "E", "+", "-", "."].includes(e.key)) e.preventDefault();
+                  }}
+                  placeholder="Attempts"
+                  style={{
+                    padding: 8,
+                    borderRadius: 8,
+                    border: "1px solid #263455",
+                    background: "#0a1020",
+                    color: "#e5e7eb",
+                  }}
+                />
 
-    {/* ADMIN ACCOUNT CARD */}
-    <div
-      style={{
-        background: "#0b1224",
-        border: "1px solid #1f2a44",
-        borderRadius: 12,
-        padding: 16,
-      }}
-    >
-      <h2 style={{ fontSize: 18, fontWeight: 800, marginBottom: 12 }}>
-        Admin Account
-      </h2>
-      <form
-        onSubmit={async (e) => {
-          e.preventDefault();
-          const username = e.target.username.value.trim();
-          const password = e.target.password.value.trim();
-          if (!username || !password) return alert("Both fields required");
+                {(() => {
+                  const invalid =
+                    !editSettings.rounds ||
+                    !editSettings.attempts ||
+                    (Array.isArray(questions) &&
+                      Number(editSettings.rounds) > questions.length);
+                  const bg = justSavedSettings
+                    ? "#065f46"
+                    : invalid
+                      ? "#155e75"
+                      : "#10b981";
+                  const cursor = invalid || savingSettings ? "not-allowed" : "pointer";
+                  const opacity = invalid || savingSettings ? 0.7 : 1;
+                  const label = savingSettings
+                    ? "Saving…"
+                    : justSavedSettings
+                      ? "Saved"
+                      : "Save Settings";
+                  const title = !editSettings.rounds || !editSettings.attempts
+                    ? "Please enter both values"
+                    : Array.isArray(questions) &&
+                      Number(editSettings.rounds) > questions.length
+                      ? `Rounds cannot exceed number of questions (${questions.length})`
+                      : undefined;
+                  return (
+                    <button
+                      type="submit"
+                      disabled={invalid || savingSettings}
+                      title={title}
+                      style={{
+                        background: bg,
+                        border: "1px solid #065f46",
+                        color: "#06261f",
+                        fontWeight: 800,
+                        padding: "8px 10px",
+                        borderRadius: 10,
+                        marginTop: 6,
+                        cursor,
+                        opacity,
+                      }}
+                    >
+                      {label}
+                    </button>
+                  );
+                })()}
+              </form>
+              <div style={{ marginTop: 12, color: "#93c5fd", fontSize: 14 }}>
+                Current: {settings.rounds} rounds, {settings.attempts} attempts
+              </div>
+              {Array.isArray(questions) && (
+                <div style={{ marginTop: 6, color: "#cbd5e1", fontSize: 12 }}>
+                  Available questions: {questions.length}
+                </div>
+              )}
+            </div>
 
-          try {
-            const res = await fetch(`${API_BASE}/api/admin`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              credentials: "include",
-              body: JSON.stringify({ username, password }),
-            });
-            if (!res.ok) throw new Error("Failed to update admin credentials");
-            const data = await res.json();
-            setToast("Admin credentials updated");
-            e.target.reset();
-            // Optionally log out to refresh credentials
-            setTimeout(() => {
-              window.location.href = "/admin/login";
-            }, 1500);
-          } catch (err) {
-            alert(err.message || "Error updating admin credentials");
-          }
-        }}
-        style={{ display: "grid", gap: 8, maxWidth: 380 }}
-      >
-        <label style={{ color: "#cbd5e1", fontSize: 13 }}>Username</label>
-        <input
-          type="text"
-          name="username"
-          placeholder="Enter new username"
-          style={{
-            padding: 8,
-            borderRadius: 8,
-            border: "1px solid #263455",
-            background: "#0a1020",
-            color: "#e5e7eb",
-          }}
-        />
+            {/* ADMIN ACCOUNT CARD */}
+            <div
+              style={{
+                background: "#0b1224",
+                border: "1px solid #1f2a44",
+                borderRadius: 12,
+                padding: 16,
+              }}
+            >
+              <h2 style={{ fontSize: 18, fontWeight: 800, marginBottom: 12 }}>
+                Admin Account
+              </h2>
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  const username = e.target.username.value.trim();
+                  const password = e.target.password.value.trim();
+                  if (!username || !password) return alert("Both fields required");
 
-        <label style={{ color: "#cbd5e1", fontSize: 13 }}>Password</label>
-        <input
-          type="password"
-          name="password"
-          placeholder="Enter new password"
-          style={{
-            padding: 8,
-            borderRadius: 8,
-            border: "1px solid #263455",
-            background: "#0a1020",
-            color: "#e5e7eb",
-          }}
-        />
+                  try {
+                    const res = await fetch(`${API_BASE}/api/admin`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      credentials: "include",
+                      body: JSON.stringify({ username, password }),
+                    });
+                    if (!res.ok) throw new Error("Failed to update admin credentials");
+                    const data = await res.json();
+                    setToast("Admin credentials updated");
+                    e.target.reset();
+                    // Optionally log out to refresh credentials
+                    setTimeout(() => {
+                      window.location.href = "/admin/login";
+                    }, 1500);
+                  } catch (err) {
+                    alert(err.message || "Error updating admin credentials");
+                  }
+                }}
+                style={{ display: "grid", gap: 8, maxWidth: 380 }}
+              >
+                <label style={{ color: "#cbd5e1", fontSize: 13 }}>Username</label>
+                <input
+                  type="text"
+                  name="username"
+                  placeholder="Enter new username"
+                  style={{
+                    padding: 8,
+                    borderRadius: 8,
+                    border: "1px solid #263455",
+                    background: "#0a1020",
+                    color: "#e5e7eb",
+                  }}
+                />
 
-        <button
-          type="submit"
-          style={{
-            background: "#3b82f6",
-            border: "1px solid #1d4ed8",
-            color: "#f9fafb",
-            fontWeight: 800,
-            padding: "8px 10px",
-            borderRadius: 10,
-            marginTop: 6,
-            cursor: "pointer",
-          }}
-        >
-          Save Admin Account
-        </button>
-      </form>
-    </div>
-  </div>
+                <label style={{ color: "#cbd5e1", fontSize: 13 }}>Password</label>
+                <input
+                  type="password"
+                  name="password"
+                  placeholder="Enter new password"
+                  style={{
+                    padding: 8,
+                    borderRadius: 8,
+                    border: "1px solid #263455",
+                    background: "#0a1020",
+                    color: "#e5e7eb",
+                  }}
+                />
 
-  {/* QUESTIONS CARD */}
-  <div
-    style={{
-      background: "#0b1224",
-      border: "1px solid #1f2a44",
-      borderRadius: 12,
-      padding: 16,
-    }}
-  >
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: 12,
-      }}
-    >
-      <h2 style={{ fontSize: 18, fontWeight: 800 }}>Questions</h2>
+                <button
+                  type="submit"
+                  style={{
+                    background: "#3b82f6",
+                    border: "1px solid #1d4ed8",
+                    color: "#f9fafb",
+                    fontWeight: 800,
+                    padding: "8px 10px",
+                    borderRadius: 10,
+                    marginTop: 6,
+                    cursor: "pointer",
+                  }}
+                >
+                  Save Admin Account
+                </button>
+              </form>
+            </div>
+          </div>
 
-      <button
-        onClick={async () => {
-          if (!confirm("Delete ALL questions? This cannot be undone.")) return;
-          try {
-            const res = await fetch(`${API_BASE}/api/questions`, {
-              method: "DELETE",
-              credentials: "include",
-            });
-            if (!res.ok) throw new Error("Failed to delete questions");
-            setQuestions([]);
-            setToast("All questions deleted");
-          } catch (err) {
-            alert(err.message || "Unable to delete questions. Please try again.");
-          }
-        }}
-        style={{
-          background: "#ef4444",
-          border: "1px solid #7f1d1d",
-          color: "#fff",
-          fontWeight: 800,
-          padding: "6px 10px",
-          borderRadius: 8,
-        }}
-      >
-        Clear All
-      </button>
-    </div>
+          {/* QUESTIONS CARD */}
+          <div
+            style={{
+              background: "#0b1224",
+              border: "1px solid #1f2a44",
+              borderRadius: 12,
+              padding: 16,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 12,
+              }}
+            >
+              <h2 style={{ fontSize: 18, fontWeight: 800 }}>Questions</h2>
 
-    {/* ADD QUESTION FORM */}
-    <form onSubmit={addQuestion} style={{ display: "grid", gap: 8 }}>
-      <input
-        value={newQuestion.text}
-        onChange={(e) =>
-          setNewQuestion((s) => ({ ...s, text: e.target.value }))
-        }
-        placeholder="Prompt (e.g., Where do Japanese live?)"
-        style={{
-          padding: 8,
-          borderRadius: 8,
-          border: "1px solid #263455",
-          background: "#0a1020",
-          color: "#e5e7eb",
-        }}
-      />
-      <select
-        value={newQuestion.answer}
-        onChange={(e) =>
-          setNewQuestion((s) => ({ ...s, answer: e.target.value }))
-        }
-        style={{
-          padding: 8,
-          borderRadius: 8,
-          border: "1px solid #263455",
-          background: "#0a1020",
-          color: "#e5e7eb",
-        }}
-      >
-        <option value="">Select answer country…</option>
-        {countryOptions.map((name) => (
-          <option key={name} value={name}>
-            {name}
-          </option>
-        ))}
-      </select>
-      <button
-        type="submit"
-        disabled={
-          savingQuestion ||
-          !(newQuestion.text.trim() && newQuestion.answer.trim())
-        }
-        style={{
-          background:
-            savingQuestion ||
-            !(newQuestion.text.trim() && newQuestion.answer.trim())
-              ? "#155e75"
-              : "#10b981",
-          border: "1px solid #065f46",
-          color: "#06261f",
-          fontWeight: 800,
-          padding: "8px 10px",
-          borderRadius: 10,
-          cursor:
-            savingQuestion ||
-            !(newQuestion.text.trim() && newQuestion.answer.trim())
-              ? "not-allowed"
-              : "pointer",
-          opacity:
-            savingQuestion ||
-            !(newQuestion.text.trim() && newQuestion.answer.trim())
-              ? 0.7
-              : 1,
-        }}
-      >
-        {savingQuestion ? "Adding…" : "Add Question"}
-      </button>
-    </form>
+              <button
+                onClick={async () => {
+                  if (!confirm("Delete ALL questions? This cannot be undone.")) return;
+                  try {
+                    const res = await fetch(`${API_BASE}/api/questions`, {
+                      method: "DELETE",
+                      credentials: "include",
+                    });
+                    if (!res.ok) throw new Error("Failed to delete questions");
+                    setQuestions([]);
+                    setToast("All questions deleted");
+                  } catch (err) {
+                    alert(err.message || "Unable to delete questions. Please try again.");
+                  }
+                }}
+                style={{
+                  background: "#ef4444",
+                  border: "1px solid #7f1d1d",
+                  color: "#fff",
+                  fontWeight: 800,
+                  padding: "6px 10px",
+                  borderRadius: 8,
+                }}
+              >
+                Clear All
+              </button>
+            </div>
 
-    {/* LIST QUESTIONS */}
-    <ul style={{ marginTop: 12, display: "grid", gap: 8 }}>
-      {questions.map((q) => (
-        <li
-          key={q.id}
-          style={{
-            background: "#0a1020",
-            border: "1px solid #263455",
-            borderRadius: 8,
-            padding: "10px 12px",
-          }}
-        >
-          {editingQuestionId === q.id ? (
-            <form onSubmit={saveEditQuestion} style={{ display: "grid", gap: 8 }}>
+            {/* ADD QUESTION FORM */}
+            <form onSubmit={addQuestion} style={{ display: "grid", gap: 8 }}>
               <input
-                value={editingQuestion.text}
+                value={newQuestion.text}
                 onChange={(e) =>
-                  setEditingQuestion((s) => ({ ...s, text: e.target.value }))
+                  setNewQuestion((s) => ({ ...s, text: e.target.value }))
                 }
-                placeholder="Prompt"
+                placeholder="Prompt (e.g., Where do Japanese live?)"
                 style={{
                   padding: 8,
                   borderRadius: 8,
@@ -562,9 +481,9 @@ const Admin = () => {
                 }}
               />
               <select
-                value={editingQuestion.answer}
+                value={newQuestion.answer}
                 onChange={(e) =>
-                  setEditingQuestion((s) => ({ ...s, answer: e.target.value }))
+                  setNewQuestion((s) => ({ ...s, answer: e.target.value }))
                 }
                 style={{
                   padding: 8,
@@ -581,83 +500,163 @@ const Admin = () => {
                   </option>
                 ))}
               </select>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button
-                  type="submit"
-                  style={{
-                    background: "#10b981",
-                    border: "1px solid #065f46",
-                    color: "#06261f",
-                    fontWeight: 800,
-                    padding: "8px 10px",
-                    borderRadius: 10,
-                  }}
-                >
-                  Save
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setEditingQuestionId(null)}
-                  style={{
-                    background: "#475569",
-                    border: "1px solid #334155",
-                    color: "#e2e8f0",
-                    fontWeight: 800,
-                    padding: "8px 10px",
-                    borderRadius: 10,
-                  }}
-                >
-                  Cancel
-                </button>
-              </div>
+              <button
+                type="submit"
+                disabled={
+                  savingQuestion ||
+                  !(newQuestion.text.trim() && newQuestion.answer.trim())
+                }
+                style={{
+                  background:
+                    savingQuestion ||
+                      !(newQuestion.text.trim() && newQuestion.answer.trim())
+                      ? "#155e75"
+                      : "#10b981",
+                  border: "1px solid #065f46",
+                  color: "#06261f",
+                  fontWeight: 800,
+                  padding: "8px 10px",
+                  borderRadius: 10,
+                  cursor:
+                    savingQuestion ||
+                      !(newQuestion.text.trim() && newQuestion.answer.trim())
+                      ? "not-allowed"
+                      : "pointer",
+                  opacity:
+                    savingQuestion ||
+                      !(newQuestion.text.trim() && newQuestion.answer.trim())
+                      ? 0.7
+                      : 1,
+                }}
+              >
+                {savingQuestion ? "Adding…" : "Add Question"}
+              </button>
             </form>
-          ) : (
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <span>
-                {q.text} · Ans: {q.answer}
-              </span>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button
-                  onClick={() => startEditQuestion(q)}
-                  style={{
-                    background: "#22c55e",
-                    border: "1px solid #15803d",
-                    color: "#052e16",
-                    fontWeight: 800,
-                    padding: "6px 10px",
-                    borderRadius: 8,
-                  }}
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={() => remove("questions", q.id)}
-                  style={{
-                    background: "#ef4444",
-                    border: "1px solid #7f1d1d",
-                    color: "#fff",
-                    fontWeight: 800,
-                    padding: "6px 10px",
-                    borderRadius: 8,
-                  }}
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          )}
-        </li>
-      ))}
-    </ul>
-  </div>
-</section>
 
+            {/* LIST QUESTIONS */}
+            <ul style={{ marginTop: 12, display: "grid", gap: 8 }}>
+              {questions.map((q) => (
+                <li
+                  key={q.id}
+                  style={{
+                    background: "#0a1020",
+                    border: "1px solid #263455",
+                    borderRadius: 8,
+                    padding: "10px 12px",
+                  }}
+                >
+                  {editingQuestionId === q.id ? (
+                    <form onSubmit={saveEditQuestion} style={{ display: "grid", gap: 8 }}>
+                      <input
+                        value={editingQuestion.text}
+                        onChange={(e) =>
+                          setEditingQuestion((s) => ({ ...s, text: e.target.value }))
+                        }
+                        placeholder="Prompt"
+                        style={{
+                          padding: 8,
+                          borderRadius: 8,
+                          border: "1px solid #263455",
+                          background: "#0a1020",
+                          color: "#e5e7eb",
+                        }}
+                      />
+                      <select
+                        value={editingQuestion.answer}
+                        onChange={(e) =>
+                          setEditingQuestion((s) => ({ ...s, answer: e.target.value }))
+                        }
+                        style={{
+                          padding: 8,
+                          borderRadius: 8,
+                          border: "1px solid #263455",
+                          background: "#0a1020",
+                          color: "#e5e7eb",
+                        }}
+                      >
+                        <option value="">Select answer country…</option>
+                        {countryOptions.map((name) => (
+                          <option key={name} value={name}>
+                            {name}
+                          </option>
+                        ))}
+                      </select>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button
+                          type="submit"
+                          style={{
+                            background: "#10b981",
+                            border: "1px solid #065f46",
+                            color: "#06261f",
+                            fontWeight: 800,
+                            padding: "8px 10px",
+                            borderRadius: 10,
+                          }}
+                        >
+                          Save
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingQuestionId(null)}
+                          style={{
+                            background: "#475569",
+                            border: "1px solid #334155",
+                            color: "#e2e8f0",
+                            fontWeight: 800,
+                            padding: "8px 10px",
+                            borderRadius: 10,
+                          }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
+                  ) : (
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                      }}
+                    >
+                      <span>
+                        {q.text} · Ans: {q.answer}
+                      </span>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button
+                          onClick={() => startEditQuestion(q)}
+                          style={{
+                            background: "#22c55e",
+                            border: "1px solid #15803d",
+                            color: "#052e16",
+                            fontWeight: 800,
+                            padding: "6px 10px",
+                            borderRadius: 8,
+                          }}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => remove("questions", q.id)}
+                          style={{
+                            background: "#ef4444",
+                            border: "1px solid #7f1d1d",
+                            color: "#fff",
+                            fontWeight: 800,
+                            padding: "6px 10px",
+                            borderRadius: 8,
+                          }}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
       </div>
     </div>
   );
