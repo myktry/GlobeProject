@@ -23,7 +23,8 @@ const AdminLogin = () => {
 
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || 'Login failed');
+        // backend returns { success: false, message: '...' } on errors
+        throw new Error(body.message || body.error || 'Login failed');
       }
 
       nav('/admin'); // redirect on success

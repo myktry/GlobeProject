@@ -13,6 +13,7 @@ const Admin = () => {
   const [savingQuestion, setSavingQuestion] = React.useState(false);
   const [editingQuestionId, setEditingQuestionId] = React.useState(null);
   const [editingQuestion, setEditingQuestion] = React.useState({ text: "", answer: "" });
+  const [editSaving, setEditSaving] = React.useState(false);
   const [countryOptions, setCountryOptions] = React.useState([]);
   const [toast, setToast] = React.useState("");
 
@@ -45,10 +46,16 @@ const Admin = () => {
     fetch("https://restcountries.com/v3.1/all?fields=name")
       .then(r => r.json())
       .then(list => {
-        const options = list
+        let options = list
           .map(c => c?.name?.common)
-          .filter(Boolean)
-          .sort((a, b) => a.localeCompare(b));
+          .filter(Boolean);
+
+        // Ensure 'England' is available as an option even though some country
+        // datasets return it as part of 'United Kingdom' rather than a top-level
+        // country name. Add it if missing, then dedupe and sort.
+        if (!options.includes("England")) options.push("England");
+
+        options = Array.from(new Set(options)).sort((a, b) => a.localeCompare(b));
         setCountryOptions(options);
       })
       .catch(() => setCountryOptions([]));
@@ -119,17 +126,35 @@ const Admin = () => {
 
   async function saveEditQuestion(e) {
     e.preventDefault();
-    const res = await fetch(`${API_BASE}/api/questions/${editingQuestionId}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify(editingQuestion),
-    });
-    const updated = await res.json();
-    setQuestions(prev => prev.map(q => (q.id === updated.id ? updated : q)));
-    setEditingQuestionId(null);
-    setEditingQuestion({ text: "", answer: "" });
-    setToast("Question updated");
+    if (!editingQuestionId) return;
+    const text = (editingQuestion.text || "").trim();
+    const answer = (editingQuestion.answer || "").trim();
+    if (!text || !answer) return alert("Please provide both prompt and answer");
+
+    try {
+      setEditSaving(true);
+      const res = await fetch(`${API_BASE}/api/questions/${editingQuestionId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ text, answer }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message || 'Failed to update question');
+      }
+
+      const updated = await res.json();
+      setQuestions(prev => prev.map(q => (q.id === updated.id ? updated : q)));
+      setEditingQuestionId(null);
+      setEditingQuestion({ text: "", answer: "" });
+      setToast("Question updated");
+    } catch (err) {
+      alert(err.message || 'Unable to update question');
+    } finally {
+      setEditSaving(false);
+    }
   }
 
   React.useEffect(() => {
@@ -141,15 +166,17 @@ const Admin = () => {
   return (
     <div
       style={{
-        minHeight: "100vh",
+        height: "100vh",
+        overflow: "hidden",
         color: "#e5e7eb",
         background:
           "radial-gradient(1200px 600px at 20% 0%, #0b1b3a 0%, #050a18 60%, #02040a 100%)",
-        padding: "32px 20px",
+        padding: "24px",
+        boxSizing: 'border-box',
         fontFamily: "Roboto, system-ui, -apple-system, Segoe UI, Helvetica, Arial, sans-serif",
       }}
     >
-      <div style={{ maxWidth: 1000, margin: "0 auto" }}>
+      <div style={{ maxWidth: 1200, margin: "0 auto", height: '100%', display: 'flex', flexDirection: 'column' }}>
         {toast && (
           <div style={{ position: 'fixed', bottom: 16, right: 16, background: '#0b1224', border: '1px solid #1f2a44', padding: '10px 14px', borderRadius: 10, boxShadow: '0 6px 18px rgba(0,0,0,.35)', zIndex: 1000 }}>
             <span style={{ color: '#c7f9cc', fontWeight: 800 }}>{toast}</span>
@@ -178,12 +205,17 @@ const Admin = () => {
           style={{
             marginTop: 24,
             display: "grid",
-            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-            gap: 16,
+            // make left column slightly narrower so there's visible space between columns
+            gridTemplateColumns: "420px 1fr",
+            gap: 24,
+            // Constrain section height so header stays visible and inner columns fit
+            maxHeight: 'calc(100vh - 140px)',
+            overflow: 'hidden',
           }}
         >
           {/* LEFT COLUMN */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {/* LEFT COLUMN: place settings and admin account side-by-side, non-scrollable */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, paddingRight: 12 }}>
             {/* SETTINGS CARD */}
             <div
               style={{
@@ -191,6 +223,10 @@ const Admin = () => {
                 border: "1px solid #1f2a44",
                 borderRadius: 12,
                 padding: 16,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
               }}
             >
               <h2 style={{ fontSize: 18, fontWeight: 800, marginBottom: 12 }}>
@@ -198,7 +234,7 @@ const Admin = () => {
               </h2>
               <form
                 onSubmit={saveSettings}
-                style={{ display: "grid", gap: 8, maxWidth: 380 }}
+                style={{ display: "grid", gap: 8, width: '100%', maxWidth: 320, alignItems: 'center' }}
               >
                 <label style={{ color: "#cbd5e1", fontSize: 13 }}>Rounds</label>
                 <input
@@ -233,6 +269,7 @@ const Admin = () => {
                     border: "1px solid #263455",
                     background: "#0a1020",
                     color: "#e5e7eb",
+                    width: '100%'
                   }}
                 />
                 <label style={{ color: "#cbd5e1", fontSize: 13 }}>Attempts</label>
@@ -271,6 +308,7 @@ const Admin = () => {
                     border: "1px solid #263455",
                     background: "#0a1020",
                     color: "#e5e7eb",
+                    width: '100%'
                   }}
                 />
 
@@ -298,7 +336,7 @@ const Admin = () => {
                       Number(editSettings.rounds) > questions.length
                       ? `Rounds cannot exceed number of questions (${questions.length})`
                       : undefined;
-                  return (
+                    return (
                     <button
                       type="submit"
                       disabled={invalid || savingSettings}
@@ -308,11 +346,12 @@ const Admin = () => {
                         border: "1px solid #065f46",
                         color: "#06261f",
                         fontWeight: 800,
-                        padding: "8px 10px",
-                        borderRadius: 10,
+                        padding: "6px 8px",
+                        borderRadius: 8,
                         marginTop: 6,
                         cursor,
                         opacity,
+                        width: 'auto'
                       }}
                     >
                       {label}
@@ -337,6 +376,10 @@ const Admin = () => {
                 border: "1px solid #1f2a44",
                 borderRadius: 12,
                 padding: 16,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
               }}
             >
               <h2 style={{ fontSize: 18, fontWeight: 800, marginBottom: 12 }}>
@@ -368,7 +411,7 @@ const Admin = () => {
                     alert(err.message || "Error updating admin credentials");
                   }
                 }}
-                style={{ display: "grid", gap: 8, maxWidth: 380 }}
+                style={{ display: "grid", gap: 8, width: '100%', maxWidth: 320, alignItems: 'center' }}
               >
                 <label style={{ color: "#cbd5e1", fontSize: 13 }}>Username</label>
                 <input
@@ -381,6 +424,7 @@ const Admin = () => {
                     border: "1px solid #263455",
                     background: "#0a1020",
                     color: "#e5e7eb",
+                    width: '100%'
                   }}
                 />
 
@@ -395,6 +439,7 @@ const Admin = () => {
                     border: "1px solid #263455",
                     background: "#0a1020",
                     color: "#e5e7eb",
+                    width: '100%'
                   }}
                 />
 
@@ -405,13 +450,14 @@ const Admin = () => {
                     border: "1px solid #1d4ed8",
                     color: "#f9fafb",
                     fontWeight: 800,
-                    padding: "8px 10px",
-                    borderRadius: 10,
+                    padding: "6px 8px",
+                    borderRadius: 8,
                     marginTop: 6,
                     cursor: "pointer",
+                    width: 'auto'
                   }}
                 >
-                  Save Admin Account
+                  Save
                 </button>
               </form>
             </div>
@@ -424,6 +470,8 @@ const Admin = () => {
               border: "1px solid #1f2a44",
               borderRadius: 12,
               padding: 16,
+              overflowY: 'auto',
+              maxHeight: '100%',
             }}
           >
             <div
@@ -534,7 +582,8 @@ const Admin = () => {
             </form>
 
             {/* LIST QUESTIONS */}
-            <ul style={{ marginTop: 12, display: "grid", gap: 8 }}>
+            <div className="admin-scroll" style={{ marginTop: 12, maxHeight: 'calc(100% - 220px)', overflowY: 'auto', paddingRight: 8 }}>
+              <ul style={{ display: "grid", gap: 8 }}>
               {questions.map((q) => (
                 <li
                   key={q.id}
@@ -584,6 +633,7 @@ const Admin = () => {
                       <div style={{ display: "flex", gap: 8 }}>
                         <button
                           type="submit"
+                          disabled={editSaving}
                           style={{
                             background: "#10b981",
                             border: "1px solid #065f46",
@@ -593,7 +643,7 @@ const Admin = () => {
                             borderRadius: 10,
                           }}
                         >
-                          Save
+                          {editSaving ? 'Saving…' : 'Save'}
                         </button>
                         <button
                           type="button"
@@ -654,7 +704,8 @@ const Admin = () => {
                   )}
                 </li>
               ))}
-            </ul>
+              </ul>
+            </div>
           </div>
         </section>
       </div>

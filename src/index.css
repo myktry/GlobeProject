@@ -109,6 +109,29 @@ input[type=number] {
   background: rgba(255, 255, 255, 0.3);
 }
 
+/* Admin panel scroll styling: thin, subtle thumb and reserved gutter so content isn't cut */
+.admin-scroll {
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: rgba(255,255,255,0.09) transparent;
+  scrollbar-gutter: stable both-edges;
+}
+.admin-scroll::-webkit-scrollbar {
+  width: 10px;
+}
+.admin-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.admin-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.07);
+  border-radius: 8px;
+  border: 2px solid transparent; /* creates padding so thumb doesn't touch edges */
+  background-clip: padding-box;
+}
+.admin-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.12);
+
+}
+
 /* ===========================
    Arcade / Neon Styles
 =========================== */

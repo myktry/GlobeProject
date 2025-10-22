@@ -3,20 +3,42 @@ import express from "express";
 import cors from "cors";
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
 
 const app = express();
-const PORT = 8000;
-const __dirname = path.resolve();
+// Read ports from environment with sensible defaults
+const PORT = Number(process.env.SERVER_PORT || 8000);
+const VITE_PORT = Number(process.env.VITE_PORT || 5173);
+// Determine this file's directory (works regardless of process.cwd())
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Middleware
-app.use(cors({
-  origin: "http://localhost:5173", // your Vite frontend
-  credentials: true,
-}));
+// Allow the configured Vite port and a common next-port fallback so the
+// frontend can talk to this API even when Vite auto-increments its port.
+app.use(
+  cors({
+    origin: [
+      `http://localhost:${VITE_PORT}`,
+      `http://localhost:${VITE_PORT + 1}`,
+    ],
+    credentials: true,
+  })
+);
 app.use(express.json());
 
 // Path to db.json
 const dbPath = path.join(__dirname, "db.json");
+
+// Ensure db.json exists with a minimal structure to avoid read errors on fresh clones
+if (!fs.existsSync(dbPath)) {
+  const initial = {
+    admin: { username: "admin", password: "admin" },
+    settings: { rounds: 5, attempts: 3 },
+    questions: [],
+  };
+  fs.writeFileSync(dbPath, JSON.stringify(initial, null, 2), "utf-8");
+}
 
 // Helper: read/write DB
 function readDB() {
@@ -72,6 +94,32 @@ app.post("/api/questions", (req, res) => {
     // ✅ Return the new question so frontend can update instantly
     res.json(newQuestion);
   });
+
+// ✅ Update a question by id
+app.put("/api/questions/:id", (req, res) => {
+  const { id } = req.params;
+  const { text, answer } = req.body;
+  if (!text || !answer) return res.status(400).json({ message: "Invalid question data" });
+
+  const db = readDB();
+  const idx = db.questions.findIndex((q) => q.id === id);
+  if (idx === -1) return res.status(404).json({ message: "Question not found" });
+
+  db.questions[idx] = { ...db.questions[idx], text, answer };
+  writeDB(db);
+  res.json(db.questions[idx]);
+});
+
+// ✅ Delete a question by id
+app.delete("/api/questions/:id", (req, res) => {
+  const { id } = req.params;
+  const db = readDB();
+  const before = db.questions.length;
+  db.questions = db.questions.filter((q) => q.id !== id);
+  if (db.questions.length === before) return res.status(404).json({ message: "Question not found" });
+  writeDB(db);
+  res.json({ success: true, message: "Question deleted" });
+});
   
 // ✅ Get settings
 app.get("/api/settings", (req, res) => {

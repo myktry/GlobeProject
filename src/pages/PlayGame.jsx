@@ -265,7 +265,6 @@ export default function PlayGame() {
             selectedCountry={null}
             loading={loading}
             onBackgroundClick={() => { }}
-            hoverHighlightOnly={true}
           />
         </div>
 
