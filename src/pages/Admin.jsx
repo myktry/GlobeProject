@@ -16,6 +16,33 @@ const Admin = () => {
   const [editSaving, setEditSaving] = React.useState(false);
   const [countryOptions, setCountryOptions] = React.useState([]);
   const [toast, setToast] = React.useState("");
+  const backupRef = React.useRef(null);
+  const [undoVisible, setUndoVisible] = React.useState(false);
+  const undoTimerRef = React.useRef(null);
+  const [undoData, setUndoData] = React.useState(null);
+  const confirmActionRef = React.useRef(null);
+  const [confirmVisible, setConfirmVisible] = React.useState(false);
+  const [confirmMessage, setConfirmMessage] = React.useState("");
+  const [resultModalVisible, setResultModalVisible] = React.useState(false);
+  const [resultModalMessage, setResultModalMessage] = React.useState("");
+  const [resultModalHasUndo, setResultModalHasUndo] = React.useState(false);
+  const [resultModalType, setResultModalType] = React.useState('success');
+
+  // Refs to align card heights: measure Settings card and apply its height to Admin Account
+  const settingsRef = React.useRef(null);
+  const [settingsHeight, setSettingsHeight] = React.useState(null);
+
+  React.useEffect(() => {
+    function measure() {
+      try {
+        const h = settingsRef.current?.offsetHeight || null;
+        setSettingsHeight(h);
+      } catch (e) { /* ignore */ }
+    }
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [settings, questions]);
 
   React.useEffect(() => {
     // ✅ check authentication + load settings + questions
@@ -79,9 +106,17 @@ const Admin = () => {
       const created = await res.json();
       setQuestions(prev => [...prev, created]);
       setNewQuestion({ text: "", answer: "" });
-      setToast("Question added");
+      // show success modal instead of toast
+      setResultModalType('success');
+      setResultModalMessage('Question added');
+      setResultModalHasUndo(false);
+      setResultModalVisible(true);
     } catch (err) {
-      alert(err.message || "Unable to add question. Please try again.");
+      // show error modal
+      setResultModalType('error');
+      setResultModalMessage(err.message || "Unable to add question. Please try again.");
+      setResultModalHasUndo(false);
+      setResultModalVisible(true);
     } finally {
       setSavingQuestion(false);
     }
@@ -114,9 +149,24 @@ const Admin = () => {
   React.useEffect(() => { setJustSavedSettings(false); }, [editSettings.rounds, editSettings.attempts]);
 
   async function remove(resource, id) {
-    await fetch(`${API_BASE}/api/${resource}/${id}`, { method: "DELETE", credentials: "include" });
-    if (resource === "questions") setQuestions(prev => prev.filter(r => r.id !== id));
-    if (resource === "questions") setToast("Question deleted");
+    try {
+      const res = await fetch(`${API_BASE}/api/${resource}/${id}`, { method: "DELETE", credentials: "include" });
+      if (!res.ok) throw new Error('Failed to delete');
+      if (resource === "questions") {
+        setQuestions(prev => prev.filter(r => r.id !== id));
+        // show success modal for delete
+        setResultModalType('success');
+        setResultModalMessage('Question deleted');
+        setResultModalHasUndo(false);
+        setResultModalVisible(true);
+      }
+    } catch (err) {
+      // show error modal
+      setResultModalType('error');
+      setResultModalMessage(err.message || 'Unable to delete item');
+      setResultModalHasUndo(false);
+      setResultModalVisible(true);
+    }
   }
 
   async function startEditQuestion(q) {
@@ -129,7 +179,13 @@ const Admin = () => {
     if (!editingQuestionId) return;
     const text = (editingQuestion.text || "").trim();
     const answer = (editingQuestion.answer || "").trim();
-    if (!text || !answer) return alert("Please provide both prompt and answer");
+    if (!text || !answer) {
+      setResultModalType('error');
+      setResultModalMessage('Please provide both prompt and answer');
+      setResultModalHasUndo(false);
+      setResultModalVisible(true);
+      return;
+    }
 
     try {
       setEditSaving(true);
@@ -149,9 +205,16 @@ const Admin = () => {
       setQuestions(prev => prev.map(q => (q.id === updated.id ? updated : q)));
       setEditingQuestionId(null);
       setEditingQuestion({ text: "", answer: "" });
-      setToast("Question updated");
+  // show success modal instead of toast
+  setResultModalType('success');
+  setResultModalMessage('Question updated');
+  setResultModalHasUndo(false);
+  setResultModalVisible(true);
     } catch (err) {
-      alert(err.message || 'Unable to update question');
+      setResultModalType('error');
+      setResultModalMessage(err.message || 'Unable to update question');
+      setResultModalHasUndo(false);
+      setResultModalVisible(true);
     } finally {
       setEditSaving(false);
     }
@@ -162,6 +225,55 @@ const Admin = () => {
     const t = setTimeout(() => setToast(""), 1800);
     return () => clearTimeout(t);
   }, [toast]);
+
+  React.useEffect(() => {
+    return () => {
+      if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    };
+  }, []);
+
+  async function handleUndo() {
+    if (!undoData?.items || !Array.isArray(undoData.items) || undoData.items.length === 0) {
+      setUndoVisible(false);
+      setUndoData(null);
+      backupRef.current = null;
+      return;
+    }
+
+    // Recreate questions on server (best-effort). Keep order.
+    try {
+      const recreated = [];
+      for (const q of undoData.items) {
+        // If q already has id, we'll ignore id and re-post text/answer
+        const res = await fetch(`${API_BASE}/api/questions`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ text: q.text, answer: q.answer }),
+        });
+        if (res.ok) {
+          const created = await res.json();
+          recreated.push(created);
+        }
+      }
+      // replace questions list with recreated ones (append any remaining original questions that might have been added meanwhile)
+      setQuestions(recreated);
+      setToast("Questions restored");
+    } catch (err) {
+      setResultModalType('error');
+      setResultModalMessage(err.message || 'Unable to restore questions');
+      setResultModalHasUndo(false);
+      setResultModalVisible(true);
+    } finally {
+      setUndoVisible(false);
+      setUndoData(null);
+      backupRef.current = null;
+      if (undoTimerRef.current) {
+        clearTimeout(undoTimerRef.current);
+        undoTimerRef.current = null;
+      }
+    }
+  }
 
   return (
     <div
@@ -178,28 +290,81 @@ const Admin = () => {
     >
       <div style={{ maxWidth: 1200, margin: "0 auto", height: '100%', display: 'flex', flexDirection: 'column' }}>
         {toast && (
-          <div style={{ position: 'fixed', bottom: 16, right: 16, background: '#0b1224', border: '1px solid #1f2a44', padding: '10px 14px', borderRadius: 10, boxShadow: '0 6px 18px rgba(0,0,0,.35)', zIndex: 1000 }}>
+          <div style={{ position: 'fixed', bottom: 88, right: 16, background: '#0b1224', border: '1px solid #1f2a44', padding: '10px 14px', borderRadius: 10, boxShadow: '0 6px 18px rgba(0,0,0,.35)', zIndex: 1000 }}>
             <span style={{ color: '#c7f9cc', fontWeight: 800 }}>{toast}</span>
           </div>
         )}
-        <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h1 style={{ fontSize: 28, fontWeight: 800 }}>Admin Panel</h1>
-          <Link
-            to="/"
-            style={{
-              textDecoration: "none",
-              background: "#0ea5e9",
-              color: "white",
-              fontWeight: 700,
-              padding: "10px 16px",
-              borderRadius: 10,
-              border: "2px solid #0369a1",
-              boxShadow: "0 0 10px #0ea5e980",
-            }}
-          >
-            Back Home
-          </Link>
-        </header>
+
+        {undoVisible && (
+          <div style={{ position: 'fixed', bottom: 16, right: 16, display: 'flex', gap: 8, alignItems: 'center', zIndex: 1001 }}>
+            <div style={{ background: '#0b1224', border: '1px solid #1f2a44', padding: '10px 14px', borderRadius: 10, boxShadow: '0 6px 18px rgba(0,0,0,.35)' }}>
+              <span style={{ color: '#fda4af', fontWeight: 700 }}>Questions deleted</span>
+            </div>
+            <button className="admin-btn btn-save btn-sm" onClick={handleUndo}>
+              Undo
+            </button>
+          </div>
+        )}
+
+        {confirmVisible && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
+            <div style={{ width: 420, maxWidth: '92%', background: '#071028', border: '1px solid #213148', padding: 20, borderRadius: 10, boxShadow: '0 12px 40px rgba(0,0,0,0.6)' }}>
+              <div style={{ marginBottom: 12, color: '#fff', fontWeight: 800, fontSize: 16 }}>{confirmMessage}</div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                <button className="admin-btn btn-neutral btn-sm" onClick={() => setConfirmVisible(false)}>Cancel</button>
+                <button className="admin-btn btn-danger btn-sm" onClick={() => { try { confirmActionRef.current && confirmActionRef.current(); } catch (e) { setConfirmVisible(false); } }}>Confirm</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {resultModalVisible && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2001 }}>
+            <div style={{ width: 420, maxWidth: '92%', background: '#071028', border: '1px solid #213148', padding: 20, borderRadius: 10, boxShadow: '0 12px 40px rgba(0,0,0,0.6)' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: 12 }}>
+                {/* Icon based on resultModalType */}
+                <div style={{ width: 56, height: 56, borderRadius: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', background: resultModalType === 'success' ? '#064e3b' : resultModalType === 'error' ? '#6b021f' : '#0b2540' }}>
+                  {resultModalType === 'success' ? (
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M20 6L9 17l-5-5" stroke="#9AE6B4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  ) : resultModalType === 'error' ? (
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M18 6L6 18M6 6l12 12" stroke="#FCA5A5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  ) : (
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M12 2a10 10 0 100 20 10 10 0 000-20zM11 10h2v6h-2v-6zm0-4h2v2h-2V6z" fill="#93C5FD" />
+                    </svg>
+                  )}
+                </div>
+
+                <div style={{ color: '#fff', fontWeight: 800, fontSize: 16 }}>{resultModalMessage}</div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 12 }}>
+                {resultModalHasUndo ? (
+                  <>
+                    <button className="admin-btn btn-save btn-sm" onClick={() => { handleUndo(); setResultModalVisible(false); }}>Undo</button>
+                    <button className="admin-btn btn-neutral btn-sm" onClick={() => setResultModalVisible(false)}>Close</button>
+                  </>
+                ) : (
+                  <button className="admin-btn btn-primary btn-sm" onClick={() => setResultModalVisible(false)}>OK</button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+          <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <Link
+              to="/"
+              className="admin-btn btn-primary btn-sm"
+              style={{ textDecoration: 'none' }}
+            >
+              Back Home
+            </Link>
+            <h1 style={{ fontSize: 28, fontWeight: 800 }}>Admin Panel</h1>
+          </header>
 
         <section
           style={{
@@ -215,18 +380,20 @@ const Admin = () => {
         >
           {/* LEFT COLUMN */}
           {/* LEFT COLUMN: place settings and admin account side-by-side, non-scrollable */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, paddingRight: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 28, paddingRight: 12, paddingLeft: 6, alignItems: 'start' }}>
             {/* SETTINGS CARD */}
             <div
+              ref={settingsRef}
               style={{
                 background: "#0b1224",
                 border: "1px solid #1f2a44",
                 borderRadius: 12,
                 padding: 16,
+                boxSizing: 'border-box',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                justifyContent: 'center',
+                justifyContent: 'flex-start', // align content to the top
               }}
             >
               <h2 style={{ fontSize: 18, fontWeight: 800, marginBottom: 12 }}>
@@ -341,18 +508,8 @@ const Admin = () => {
                       type="submit"
                       disabled={invalid || savingSettings}
                       title={title}
-                      style={{
-                        background: bg,
-                        border: "1px solid #065f46",
-                        color: "#06261f",
-                        fontWeight: 800,
-                        padding: "6px 8px",
-                        borderRadius: 8,
-                        marginTop: 6,
-                        cursor,
-                        opacity,
-                        width: 'auto'
-                      }}
+                      className={`admin-btn ${justSavedSettings ? 'btn-save' : (invalid || savingSettings) ? 'btn-neutral' : 'btn-primary'} btn-sm ${invalid || savingSettings ? 'disabled' : ''}`}
+                      style={{ marginTop: 6, width: 'auto', padding: '6px 10px' }}
                     >
                       {label}
                     </button>
@@ -376,10 +533,13 @@ const Admin = () => {
                 border: "1px solid #1f2a44",
                 borderRadius: 12,
                 padding: 16,
+                boxSizing: 'border-box',
+                minHeight: settingsHeight ? settingsHeight : undefined,
+                height: 'auto',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                justifyContent: 'center',
+                justifyContent: 'flex-start', // align content to the top
               }}
             >
               <h2 style={{ fontSize: 18, fontWeight: 800, marginBottom: 12 }}>
@@ -390,7 +550,14 @@ const Admin = () => {
                   e.preventDefault();
                   const username = e.target.username.value.trim();
                   const password = e.target.password.value.trim();
-                  if (!username || !password) return alert("Both fields required");
+                  if (!username || !password) {
+                    // show in-app error modal instead of browser alert
+                    setResultModalType('error');
+                    setResultModalMessage('Both fields required');
+                    setResultModalHasUndo(false);
+                    setResultModalVisible(true);
+                    return;
+                  }
 
                   try {
                     const res = await fetch(`${API_BASE}/api/admin`, {
@@ -408,7 +575,11 @@ const Admin = () => {
                       window.location.href = "/admin/login";
                     }, 1500);
                   } catch (err) {
-                    alert(err.message || "Error updating admin credentials");
+                    // show error in modal instead of alert
+                    setResultModalType('error');
+                    setResultModalMessage(err.message || "Error updating admin credentials");
+                    setResultModalHasUndo(false);
+                    setResultModalVisible(true);
                   }
                 }}
                 style={{ display: "grid", gap: 8, width: '100%', maxWidth: 320, alignItems: 'center' }}
@@ -445,17 +616,8 @@ const Admin = () => {
 
                 <button
                   type="submit"
-                  style={{
-                    background: "#3b82f6",
-                    border: "1px solid #1d4ed8",
-                    color: "#f9fafb",
-                    fontWeight: 800,
-                    padding: "6px 8px",
-                    borderRadius: 8,
-                    marginTop: 6,
-                    cursor: "pointer",
-                    width: 'auto'
-                  }}
+                  className="admin-btn btn-save btn-sm"
+                  style={{ marginTop: 6, width: 'auto', padding: '6px 10px' }}
                 >
                   Save
                 </button>
@@ -484,32 +646,78 @@ const Admin = () => {
             >
               <h2 style={{ fontSize: 18, fontWeight: 800 }}>Questions</h2>
 
-              <button
-                onClick={async () => {
-                  if (!confirm("Delete ALL questions? This cannot be undone.")) return;
-                  try {
-                    const res = await fetch(`${API_BASE}/api/questions`, {
-                      method: "DELETE",
-                      credentials: "include",
-                    });
-                    if (!res.ok) throw new Error("Failed to delete questions");
-                    setQuestions([]);
-                    setToast("All questions deleted");
-                  } catch (err) {
-                    alert(err.message || "Unable to delete questions. Please try again.");
-                  }
-                }}
-                style={{
-                  background: "#ef4444",
-                  border: "1px solid #7f1d1d",
-                  color: "#fff",
-                  fontWeight: 800,
-                  padding: "6px 10px",
-                  borderRadius: 8,
-                }}
-              >
-                Clear All
-              </button>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  onClick={() => {
+                    // show in-app confirmation modal instead of browser confirm
+                    setConfirmMessage('Clear the form? This will discard unsaved inputs.');
+                    confirmActionRef.current = () => {
+                      setNewQuestion({ text: "", answer: "" });
+                      setEditingQuestionId(null);
+                      setEditingQuestion({ text: "", answer: "" });
+                      setToast("Form cleared");
+                      setConfirmVisible(false);
+                      // show result modal for feedback
+                      setResultModalMessage('Form cleared');
+                      setResultModalHasUndo(false);
+                      setResultModalType('success');
+                      setResultModalVisible(true);
+                    };
+                    setConfirmVisible(true);
+                  }}
+                  className="admin-btn btn-neutral btn-sm"
+                >
+                  Clear Form
+                </button>
+
+                <button
+                  onClick={() => {
+                    // show in-app confirmation modal for deleting all questions
+                    setConfirmMessage('Delete ALL questions? This cannot be undone.');
+                    confirmActionRef.current = async () => {
+                      // backup current questions in memory for undo
+                      backupRef.current = Array.isArray(questions) ? [...questions] : [];
+                      try {
+                        const res = await fetch(`${API_BASE}/api/questions`, {
+                          method: "DELETE",
+                          credentials: "include",
+                        });
+                        if (!res.ok) throw new Error("Failed to delete questions");
+                        setQuestions([]);
+                        setToast("All questions deleted");
+                        // show undo snackbar
+                        setUndoData({ items: backupRef.current });
+                        setUndoVisible(true);
+                        if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+                        undoTimerRef.current = setTimeout(() => {
+                          setUndoVisible(false);
+                          setUndoData(null);
+                          backupRef.current = null;
+                          undoTimerRef.current = null;
+                        }, 6000);
+                        // show result modal with undo option
+                        setResultModalMessage('All questions deleted');
+                        setResultModalHasUndo(true);
+                        setResultModalType('success');
+                        setResultModalVisible(true);
+                      } catch (err) {
+                        // show error in modal instead of browser alert
+                        setResultModalType('error');
+                        setResultModalMessage(err.message || "Unable to delete questions. Please try again.");
+                        setResultModalHasUndo(false);
+                        setResultModalVisible(true);
+                        backupRef.current = null;
+                      } finally {
+                        setConfirmVisible(false);
+                      }
+                    };
+                    setConfirmVisible(true);
+                  }}
+                  className="admin-btn btn-danger btn-sm"
+                >
+                  Clear All
+                </button>
+              </div>
             </div>
 
             {/* ADD QUESTION FORM */}
@@ -554,28 +762,8 @@ const Admin = () => {
                   savingQuestion ||
                   !(newQuestion.text.trim() && newQuestion.answer.trim())
                 }
-                style={{
-                  background:
-                    savingQuestion ||
-                      !(newQuestion.text.trim() && newQuestion.answer.trim())
-                      ? "#155e75"
-                      : "#10b981",
-                  border: "1px solid #065f46",
-                  color: "#06261f",
-                  fontWeight: 800,
-                  padding: "8px 10px",
-                  borderRadius: 10,
-                  cursor:
-                    savingQuestion ||
-                      !(newQuestion.text.trim() && newQuestion.answer.trim())
-                      ? "not-allowed"
-                      : "pointer",
-                  opacity:
-                    savingQuestion ||
-                      !(newQuestion.text.trim() && newQuestion.answer.trim())
-                      ? 0.7
-                      : 1,
-                }}
+                className={`admin-btn ${savingQuestion || !(newQuestion.text.trim() && newQuestion.answer.trim()) ? 'btn-neutral btn-sm disabled' : 'btn-primary btn-md'}`}
+                style={{ borderRadius: 10 }}
               >
                 {savingQuestion ? "Adding…" : "Add Question"}
               </button>
@@ -634,28 +822,14 @@ const Admin = () => {
                         <button
                           type="submit"
                           disabled={editSaving}
-                          style={{
-                            background: "#10b981",
-                            border: "1px solid #065f46",
-                            color: "#06261f",
-                            fontWeight: 800,
-                            padding: "8px 10px",
-                            borderRadius: 10,
-                          }}
+                          className="admin-btn btn-save btn-sm"
                         >
                           {editSaving ? 'Saving…' : 'Save'}
                         </button>
                         <button
                           type="button"
                           onClick={() => setEditingQuestionId(null)}
-                          style={{
-                            background: "#475569",
-                            border: "1px solid #334155",
-                            color: "#e2e8f0",
-                            fontWeight: 800,
-                            padding: "8px 10px",
-                            borderRadius: 10,
-                          }}
+                          className="admin-btn btn-neutral btn-sm"
                         >
                           Cancel
                         </button>
@@ -675,27 +849,53 @@ const Admin = () => {
                       <div style={{ display: "flex", gap: 8 }}>
                         <button
                           onClick={() => startEditQuestion(q)}
-                          style={{
-                            background: "#22c55e",
-                            border: "1px solid #15803d",
-                            color: "#052e16",
-                            fontWeight: 800,
-                            padding: "6px 10px",
-                            borderRadius: 8,
-                          }}
+                          className="admin-btn btn-primary btn-sm"
                         >
                           Edit
                         </button>
                         <button
-                          onClick={() => remove("questions", q.id)}
-                          style={{
-                            background: "#ef4444",
-                            border: "1px solid #7f1d1d",
-                            color: "#fff",
-                            fontWeight: 800,
-                            padding: "6px 10px",
-                            borderRadius: 8,
+                          onClick={() => {
+                            // Ask for confirmation before deleting a single question and allow undo
+                            setConfirmMessage('Delete this question? You will be able to undo for a short time.');
+                            confirmActionRef.current = async () => {
+                              backupRef.current = [q];
+                              try {
+                                const res = await fetch(`${API_BASE}/api/questions/${q.id}`, {
+                                  method: "DELETE",
+                                  credentials: "include",
+                                });
+                                if (!res.ok) throw new Error('Failed to delete question');
+                                setQuestions(prev => prev.filter(r => r.id !== q.id));
+
+                                // show undo snackbar
+                                setUndoData({ items: backupRef.current });
+                                setUndoVisible(true);
+                                if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+                                undoTimerRef.current = setTimeout(() => {
+                                  setUndoVisible(false);
+                                  setUndoData(null);
+                                  backupRef.current = null;
+                                  undoTimerRef.current = null;
+                                }, 6000);
+
+                                // show result modal with undo option
+                                setResultModalType('success');
+                                setResultModalMessage('Question deleted');
+                                setResultModalHasUndo(true);
+                                setResultModalVisible(true);
+                              } catch (err) {
+                                setResultModalType('error');
+                                setResultModalMessage(err.message || 'Unable to delete question. Please try again.');
+                                setResultModalHasUndo(false);
+                                setResultModalVisible(true);
+                                backupRef.current = null;
+                              } finally {
+                                setConfirmVisible(false);
+                              }
+                            };
+                            setConfirmVisible(true);
                           }}
+                          className="admin-btn btn-danger btn-sm"
                         >
                           Delete
                         </button>

@@ -50,6 +50,7 @@ const Button = ({ to, children }) => {
   return (
     <Link to={to} style={{ textDecoration: "none" }}>
       <span
+        className="arcade-font"
         style={style}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
@@ -107,7 +108,7 @@ const LandingPage = () => (
             WebkitTextStroke: '2px #34d399',
           }}
         >
-          <span
+          <span className="arcade-font"
             style={{
               background: 'linear-gradient(90deg, #34d399 0%, #38bdf8 60%, #0b1b3a 100%)',
               WebkitBackgroundClip: 'text',
