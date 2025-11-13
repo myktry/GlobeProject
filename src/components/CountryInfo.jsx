@@ -1,6 +1,7 @@
 import React from 'react';
 import { Users, Landmark, Globe2, X, DollarSign, Clock, Languages, MapPin } from "lucide-react";
 import { useState, useEffect } from 'react';
+import Button, { IconButton } from './UIButton';
 
 export default function CountryInfo({ country, onClose }) {
   if (!country) return null;
@@ -524,39 +525,14 @@ export default function CountryInfo({ country, onClose }) {
       }}
     >
       {/* Close Button */}
-      <button
-        aria-label="Close country info"
+      <IconButton
+        ariaLabel="Close country info"
         onClick={onClose}
-        style={{
-          position: 'absolute',
-          top: 16,
-          right: 16,
-          background: 'linear-gradient(90deg, #E1DED9 0%, #A9C4C4 100%)',
-          border: '1px solid #000435',
-          borderRadius: '50%',
-          width: 36,
-          height: 36,
-          color: '#000435',
-          fontSize: 22,
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          boxShadow: '0 2px 12px 0 #00043522',
-          transition: 'box-shadow 0.18s, background 0.18s, border-color 0.18s',
-          zIndex: 20,
-        }}
-        onMouseOver={e => {
-          e.currentTarget.style.transform = 'scale(1.08)';
-          e.currentTarget.style.background = 'linear-gradient(90deg, #A9C4C4 0%, #E1DED9 100%)';
-        }}
-        onMouseOut={e => {
-          e.currentTarget.style.transform = 'scale(1)';
-          e.currentTarget.style.background = 'linear-gradient(90deg, #E1DED9 0%, #A9C4C4 100%)';
-        }}
+        size={40}
+        style={{ position: 'absolute', top: 16, right: 16, zIndex: 20, background: 'linear-gradient(90deg, #E1DED9 0%, #A9C4C4 100%)', border: '1px solid #000435' }}
       >
         <X style={{ width: 22, height: 22, color: '#000435' }} />
-      </button>
+      </IconButton>
       {/* Title Section: Flag, Country Code, Name, Subtitle */}
         <div className="relative overflow-hidden flex-shrink-0" style={{ background: 'linear-gradient(90deg, #004466 0%, #000435 100%)', borderRadius: '28px 28px 0 0', padding: '22px 20px 16px 20px', minHeight: '120px', boxShadow: '0 4px 24px 0 #00043544' }}>
           <div className="flex flex-col items-center justify-center w-full" style={{ gap: '2px', marginTop: '2px', marginBottom: '2px' }}>

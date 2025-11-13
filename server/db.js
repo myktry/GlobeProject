@@ -8,7 +8,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const sqlitePath = path.join(__dirname, "data.sqlite");
-const jsonPath = path.join(__dirname, "db.json");
 
 let SQL;
 let db;
@@ -61,56 +60,13 @@ export async function initDB() {
   db.run(`CREATE TABLE IF NOT EXISTS questions (id TEXT PRIMARY KEY, text TEXT, answer TEXT);`);
   db.run(`CREATE TABLE IF NOT EXISTS tourist_spots (id TEXT PRIMARY KEY, country TEXT, name TEXT, description TEXT);`);
 
-  // If empty, try migrating from db.json
+  // compute existing counts
   const adminCountRow = queryOne(`SELECT COUNT(*) as c FROM admin`);
   const settingsCountRow = queryOne(`SELECT COUNT(*) as c FROM settings`);
   const questionsCountRow = queryOne(`SELECT COUNT(*) as c FROM questions`);
   let adminCount = adminCountRow ? adminCountRow.c : 0;
   let settingsCount = settingsCountRow ? settingsCountRow.c : 0;
   let questionsCount = questionsCountRow ? questionsCountRow.c : 0;
-
-  if (adminCount === 0 && settingsCount === 0 && questionsCount === 0 && fs.existsSync(jsonPath)) {
-    try {
-      const raw = fs.readFileSync(jsonPath, "utf-8");
-      const parsed = JSON.parse(raw);
-
-      db.run("BEGIN;");
-      if (parsed.admin) {
-        db.run(`INSERT INTO admin (username, password) VALUES (?, ?);`, [parsed.admin.username || "admin", parsed.admin.password || "admin"]);
-      }
-      if (parsed.settings) {
-        db.run(`INSERT INTO settings (id, rounds, attempts) VALUES (1, ?, ?);`, [parsed.settings.rounds ?? 5, parsed.settings.attempts ?? 3]);
-      }
-      if (Array.isArray(parsed.questions) && parsed.questions.length > 0) {
-        const insertStmt = db.prepare(`INSERT OR IGNORE INTO questions (id, text, answer) VALUES (?, ?, ?);`);
-        for (const q of parsed.questions) {
-          if (!q.id || !q.text) continue;
-          insertStmt.run([q.id, q.text, q.answer ?? ""]);
-        }
-        insertStmt.free();
-      }
-      // migrate tourist spots if present
-      if (Array.isArray(parsed.touristSpots) && parsed.touristSpots.length > 0) {
-        const insertSpot = db.prepare(`INSERT OR IGNORE INTO tourist_spots (id, country, name, description) VALUES (?, ?, ?, ?);`);
-        for (const s of parsed.touristSpots) {
-          if (!s.id || !s.country || !s.name) continue;
-          insertSpot.run([s.id, s.country, s.name, s.description ?? ""]);
-        }
-        insertSpot.free();
-      }
-      db.run("COMMIT;");
-      persist();
-    } catch (err) {
-      console.warn("Failed to migrate from db.json:", err.message);
-      try { db.run("ROLLBACK;"); } catch (e) { /* ignore */ }
-    }
-
-    // recompute counts
-    const a = queryOne(`SELECT COUNT(*) as c FROM admin`);
-    const s = queryOne(`SELECT COUNT(*) as c FROM settings`);
-    adminCount = a ? a.c : 0;
-    settingsCount = s ? s.c : 0;
-  }
 
   if (adminCount === 0) db.run(`INSERT INTO admin (username, password) VALUES (?, ?);`, ["admin", "admin"]);
   if (settingsCount === 0) db.run(`INSERT INTO settings (id, rounds, attempts) VALUES (1, ?, ?);`, [5, 3]);

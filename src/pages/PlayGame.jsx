@@ -2,6 +2,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import InteractiveGlobe from "../components/InteractiveGlobe"; // <-- your globe
+import Button, { IconButton } from "../components/UIButton";
 // We won't use CountryInfo here; game only needs clicks
 
 export default function PlayGame() {
@@ -76,6 +77,16 @@ export default function PlayGame() {
         // Show a short "game over" then automatically restart
         startGame();
       }, 2000);
+      return () => clearTimeout(t);
+    }
+  }, [state]);
+
+  // When user answers wrong, show the 'Incorrect' pill briefly then automatically return to asking
+  useEffect(() => {
+    if (state === 'wrong') {
+      const t = setTimeout(() => {
+        setState('asking');
+      }, 1200);
       return () => clearTimeout(t);
     }
   }, [state]);
@@ -217,10 +228,7 @@ export default function PlayGame() {
     setQ(randomQuestion());
     setState("asking");
   }
-  function tryAgainSameQuestion() {
-    setAttempts(0);
-    setState("asking");
-  }
+  
 
   // Called by your InteractiveGlobe; it sends a country object
   const onCountryClick = (countryData) => {
@@ -252,6 +260,43 @@ export default function PlayGame() {
 
   return (
     <>
+      <style>{`
+        @keyframes popInGreen {
+          0% { transform: scale(0.6) translateY(8px); opacity: 0 }
+          70% { transform: scale(1.06) translateY(-6px); opacity: 1 }
+          100% { transform: scale(1) translateY(0); opacity: 1 }
+        }
+        @keyframes popInRed {
+          0% { transform: scale(0.9) translateY(0); opacity: 0 }
+          50% { transform: scale(1.04) translateY(-4px); opacity: 1 }
+          100% { transform: scale(1) translateY(0); opacity: 1 }
+        }
+        .pill-pop-green { animation: popInGreen 320ms cubic-bezier(.2,.9,.2,1) both; }
+        .pill-pop-red { animation: popInRed 260ms cubic-bezier(.2,.9,.2,1) both; }
+
+  /* Revert question card to previous wider layout */
+  .question-card { max-width: 1100px !important; padding: 22px 34px !important; border-radius: 16px !important; }
+  .bottom-restart-wrap { /* centered by parent flex; no manual offset */ }
+        /* smaller width, taller button */
+        .bottom-restart-btn { width: 280px; display: inline-flex; justify-content: center; padding: 18px 20px !important; font-size: 18px !important; }
+        .bottom-restart-btn.pulse { animation: pulse 2200ms ease-in-out infinite; }
+
+        @keyframes pulse {
+          0% { transform: translateY(0); }
+          50% { transform: translateY(-4px); }
+          100% { transform: translateY(0); }
+        }
+
+        @media (max-width: 900px) {
+          .question-card { max-width: 760px !important; padding: 18px 22px !important; }
+          .bottom-restart-btn { width: 260px; }
+        }
+        @media (max-width: 640px) {
+          .question-card { max-width: 92vw !important; padding: 12px 14px !important; }
+          .pill-pop-green, .pill-pop-red { transform-origin: center bottom; }
+          .bottom-restart-btn { width: 86vw !important; font-size: 16px !important; padding: 16px 14px !important; }
+        }
+      `}</style>
       <div className="min-h-screen text-white relative"
         style={{
           background:
@@ -274,31 +319,34 @@ export default function PlayGame() {
           <div className="flex items-center justify-between p-6 bg-gradient-to-r from-black/30 via-black/20 to-black/30 backdrop-blur-md">
             <Link
               to="/"
-              className="px-6 py-3 rounded-lg bg-purple-600 hover:bg-purple-700 transition-all duration-300 text-white font-bold text-lg shadow-lg hover:shadow-xl border border-purple-500 hover:border-purple-400 transform hover:scale-105 active:scale-95"
+              aria-label="Back to Home"
+              className="inline-flex items-center gap-2"
             >
-              ← Back
+              <IconButton ariaLabel="Back to home" size={40} style={{ backdropFilter: 'blur(6px)' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                  <path d="M15 18l-6-6 6-6" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </IconButton>
             </Link>
             <h2 className="text-3xl font-extrabold bg-gradient-to-r from-white via-purple-200 to-white bg-clip-text text-transparent tracking-wider">
               GEOGRAPHY QUIZ
             </h2>
-            <div className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-300 text-white cursor-pointer border border-white/20">
-              [Help]
-            </div>
+            {/* help removed per design — keep header minimal */}
           </div>
 
           {/* Game Stats Section */}
           {state !== "summary" && (
             <div className="px-6 py-5 bg-gradient-to-r from-black/25 via-black/15 to-black/25 backdrop-blur-md">
-              <div className="grid grid-cols-3 gap-8 max-w-4xl mx-auto">
-                <div className="flex items-center gap-3 px-6 py-3 rounded-lg bg-white/10 justify-center">
+              <div className="grid grid-cols-3 gap-2 max-w-4xl mx-auto">
+                <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/10 justify-center">
                   <span className="text-purple-300 font-semibold">Round:</span>
                   <span className="text-white font-bold text-lg">{round}/{totalRounds}</span>
                 </div>
-                <div className="flex items-center gap-3 px-6 py-3 rounded-lg bg-white/10 justify-center">
+                <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/10 justify-center">
                   <span className="text-green-300 font-semibold">Score:</span>
                   <span className="text-white font-bold text-lg">{score}</span>
                 </div>
-                <div className="flex items-center gap-3 px-6 py-3 rounded-lg bg-white/10 justify-center">
+                <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/10 justify-center">
                   <span className="text-yellow-300 font-semibold">Attempts:</span>
                   <span className="text-white font-bold text-lg">{Math.max(0, settings.attempts - attempts)}</span>
                 </div>
@@ -315,22 +363,50 @@ export default function PlayGame() {
           {state !== "summary" && (
             <div className="px-6 py-8 bg-gradient-to-r from-black/30 via-black/20 to-black/30 backdrop-blur-md">
               <div className="text-center">
-                <div className="text-2xl text-white font-bold tracking-wide leading-relaxed">
-                  {loading
-                    ? "Loading question…"
-                    : questionBank.length === 0
-                      ? (
-                        <span>
-                          No questions available at the moment.
-                        </span>
-                      )
-                      : (q?.prompt || "Loading…")}
+                <div
+                  className="question-card"
+                  style={{
+                    display: 'inline-block',
+                    maxWidth: 1100,
+                    padding: '22px 34px',
+                    borderRadius: 16,
+                    background: 'linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01))',
+                    border: '1px solid rgba(124,58,237,0.10)',
+                    boxShadow: '0 14px 40px rgba(2,6,23,0.66), inset 0 1px 0 rgba(255,255,255,0.02)',
+                  }}
+                >
+                  <div className="text-3xl md:text-4xl font-extrabold leading-tight" style={{ color: '#fff', textShadow: '0 6px 28px rgba(124,58,237,0.08), 0 2px 8px rgba(0,0,0,0.6)' }}>
+                    {loading
+                      ? "Loading question…"
+                      : questionBank.length === 0
+                        ? (
+                          <span style={{ color: '#cbd5e1', fontWeight: 600 }}>
+                            No questions available at the moment.
+                          </span>
+                        )
+                        : (q?.prompt || "Loading…")}
+                  </div>
+                  <div style={{ marginTop: 10 }}>
+                    <small style={{ color: '#9ca3af', fontSize: 14 }}>Tap a country on the globe to answer</small>
+                  </div>
                 </div>
                 {/* Correct feedback that disappears after 3 seconds */}
                 {showCorrect && (
-                  <div className="mt-4 animate-fade-in">
-                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-green-500/20 border border-green-400/50 backdrop-blur-sm">
-                      <span className="text-green-300 font-semibold text-lg">✅ Correct!</span>
+                  <div className="mt-4" style={{ display: 'flex', justifyContent: 'center' }}>
+                    <div
+                      className="pill-pop-green inline-flex items-center gap-3 px-8 py-4 rounded-full font-extrabold"
+                      style={{
+                        background: 'linear-gradient(90deg,#34d399,#10b981)',
+                        color: '#04282b',
+                        boxShadow: '0 26px 80px rgba(16,185,129,0.32), inset 0 1px 0 rgba(255,255,255,0.08)',
+                        borderRadius: 999
+                      }}
+                    >
+                      <svg width="50" height="30" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                        <circle cx="12" cy="12" r="10" fill="#fff" fillOpacity="0.95" />
+                        <path d="M7 13l2.5 2.5L17 8" stroke="#059669" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                      <span style={{ fontSize: 18, color: '#04282b' }}>Correct!</span>
                     </div>
                   </div>
                 )}
@@ -390,59 +466,70 @@ export default function PlayGame() {
           {state !== "summary" && (
             <>
 
-              <div className="flex gap-3 px-5 mt-3 bg-black/20 backdrop-blur-sm py-3">
+              <div className="max-w-4xl mx-auto px-6 mt-4 flex justify-center">
                 {state === "wrong" && (
-                  <Pill className="bg-red-500/70">Incorrect. Try again!</Pill>
+                  <div className="pill-pop-red inline-flex items-center gap-3 px-8 py-4 rounded-full font-extrabold" style={{
+                    background: 'linear-gradient(90deg,#f87171,#ef4444)',
+                    color: '#fff',
+                    boxShadow: '0 26px 80px rgba(239,68,68,0.22), inset 0 1px 0 rgba(255,255,255,0.06)',
+                    borderRadius: 999
+                  }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                      <circle cx="12" cy="12" r="10" fill="#fff" fillOpacity="0.95" />
+                      <path d="M15 9l-6 6M9 9l6 6" stroke="#dc2626" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    <span style={{ fontSize: 16, color: '#fff' }}>Incorrect. Try again!</span>
+                  </div>
                 )}
                 {state === "locked" && (
-                  <Pill className="bg-red-600/80">
-                    ❌ Out of attempts. Game Over
-                  </Pill>
+                  <Pill className="bg-red-600/80">❌ Out of attempts. Game Over</Pill>
                 )}
               </div>
 
-              {/* Globe Indicator */}
-
-
-              {/* Action Buttons */}
+              {/* Action Buttons (centered, consistent) */}
               <div className="flex justify-center gap-6 px-6 py-4">
-                {state === "correct" && (
-                  <button onClick={nextQuestion}
-                    className="px-10 py-4 rounded-lg bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 transition-all duration-300 text-white font-bold text-lg shadow-lg hover:shadow-xl border border-violet-500 hover:border-violet-400 transform hover:scale-105 active:scale-95">
-                    ➡️ Next
-                  </button>
+                {state === "locked" && (
+                  <Button onClick={startGame} variant="danger" size="md">Restart Now</Button>
                 )}
-                {/* When locked we auto-restart the game; no action buttons shown here */}
-              </div>
-
-              {/* Restart Game Button */}
-              <div className="flex justify-center py-8">
-                <button
-                  onClick={startGame}
-                  className="px-12 py-5 rounded-lg bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 transition-all duration-300 text-white font-bold text-xl shadow-lg hover:shadow-xl border border-red-500 hover:border-red-400 transform hover:scale-105 active:scale-95 flex items-center gap-3"
-                >
-                  <span className="text-2xl">🔄</span>
-                  <span>Restart Game</span>
-                </button>
               </div>
             </>
           )}
         </div>
       </div>
 
+  {/* Fixed bottom restart button (visible during gameplay) */}
+  <BottomRestart onRestart={startGame} visible={state !== 'summary'} />
+
     </>
   );
 }
 
+// render BottomRestart inside default export area by exposing it
+
+  // Fixed bottom restart control (visible during gameplay)
+  function BottomRestart({ onRestart, visible }) {
+    if (!visible) return null;
+    return (
+      <div style={{ position: 'fixed', left: 0, right: 0, bottom: 22, zIndex: 2200, display: 'flex', justifyContent: 'center', pointerEvents: 'none' }}>
+            <div className="bottom-restart-wrap" style={{ display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'center', pointerEvents: 'auto' }}>
+            <Button className="bottom-restart-btn pulse" onClick={() => { setTimeout(() => onRestart(), 60); }} 
+            variant="primary" size="lg" style={{ boxShadow: '0 28px 84px rgba(124,58,237,0.28)', borderRadius: 999, background: 'linear-gradient(90deg,#7c3aed,#5b21b6)', color: '#fff', letterSpacing: 0.6, border: '2px solid rgba(76,29,149,0.9)' }}>
+              <span style={{ display: 'inline-block', lineHeight: 1, fontWeight: 800, letterSpacing: 0.4 }}>Restart</span>
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
 function Badge({ children }) {
   return (
-    <div className="px-3 py-2 rounded-lg bg-white/10">
+    <div className="px-3 py-2 rounded-lg bg-white/10 shadow-sm">
       {children}
     </div>
   );
 }
 function Pill({ children, className = "" }) {
   return (
-    <span className={`px-3 py-2 rounded-lg ${className}`}>{children}</span>
+    <span className={`px-3 py-2 rounded-lg inline-flex items-center gap-2 font-semibold ${className}`} style={{ boxShadow: '0 6px 18px rgba(2,6,23,0.6)' }}>{children}</span>
   );
 }
