@@ -1,4 +1,6 @@
+import React from 'react';
 import { Users, Landmark, Globe2, X, DollarSign, Clock, Languages, MapPin } from "lucide-react";
+import { useState, useEffect } from 'react';
 
 export default function CountryInfo({ country, onClose }) {
   if (!country) return null;
@@ -477,6 +479,27 @@ export default function CountryInfo({ country, onClose }) {
     return `${area.toLocaleString()} km²`;
   };
 
+  const [spots, setSpots] = useState([]);
+  const [loadingSpots, setLoadingSpots] = useState(false);
+
+  useEffect(() => {
+    async function loadSpots() {
+      if (!safeCountry?.name?.common) return setSpots([]);
+      setLoadingSpots(true);
+      try {
+        const res = await fetch(`http://localhost:8000/api/spots?country=${encodeURIComponent(safeCountry.name.common)}`);
+        if (!res.ok) throw new Error('Failed to load spots');
+        const data = await res.json();
+        setSpots(Array.isArray(data) ? data : []);
+      } catch (err) {
+        setSpots([]);
+      } finally {
+        setLoadingSpots(false);
+      }
+    }
+    loadSpots();
+  }, [safeCountry?.name?.common]);
+
   return (
     <div
       className="bg-white/5 backdrop-blur-xl border border-white/20 shadow-2xl overflow-hidden fixed flex flex-col transition-all duration-500 ease-out transform hover:scale-[1.02] hover:shadow-3xl hover:border-white/30"
@@ -656,6 +679,30 @@ export default function CountryInfo({ country, onClose }) {
                 {formatTimezones(safeCountry.timezones)}
               </div>
             </div>
+
+              {/* Tourist Spots */}
+              <div className="transition-all duration-300 relative overflow-hidden group" style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '20px', padding: '8px' }}>
+                <div className="text-white/70 text-xs flex items-center gap-3" style={{ marginBottom: '8px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                  <Landmark className="w-4 h-4" />
+                  Tourist Spots
+                </div>
+                <div>
+                  {loadingSpots ? (
+                    <div style={{ color: '#cbd5e1' }}>Loading…</div>
+                  ) : spots.length === 0 ? (
+                    <div style={{ color: '#94a3b8' }}>No tourist spots available.</div>
+                  ) : (
+                    <ul style={{ display: 'grid', gap: 8 }}>
+                      {spots.map(s => (
+                        <li key={s.id} style={{ background: 'rgba(255,255,255,0.02)', borderRadius: 12, padding: 8 }}>
+                          <div style={{ fontWeight: 800, color: '#fff' }}>{s.name}</div>
+                          {s.description && <div style={{ color: '#cbd5e1', fontSize: 13 }}>{s.description}</div>}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
           </div>
         </div>
       </div>

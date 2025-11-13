@@ -4,17 +4,6 @@ import { Link } from "react-router-dom";
 import InteractiveGlobe from "../components/InteractiveGlobe"; // <-- your globe
 // We won't use CountryInfo here; game only needs clicks
 
-// Optional local questions (used only if backend is unreachable)
-const LOCAL_DEMO_QUESTIONS = [
-  { prompt: "Which country do Filipinos live?", answer: "Philippines" },
-  { prompt: "Where do Japanese live?", answer: "Japan" },
-  { prompt: "Which country do Brazilians live?", answer: "Brazil" },
-  { prompt: "Which country do Egyptians live?", answer: "Egypt" },
-  { prompt: "Which country do Canadians live?", answer: "Canada" },
-  { prompt: "Where do French people live?", answer: "France" },
-  { prompt: "Which country do Indians live?", answer: "India" },
-];
-
 export default function PlayGame() {
   // ==== reuse your GlobePage data shape ====
   const [countries, setCountries] = useState({ features: [] });
@@ -77,6 +66,17 @@ export default function PlayGame() {
         nextQuestion(); // Automatically proceed to next question
       }, 2000);
       return () => clearTimeout(timer);
+    }
+  }, [state]);
+
+  // When user runs out of attempts (locked), show message briefly then reset the game
+  useEffect(() => {
+    if (state === "locked") {
+      const t = setTimeout(() => {
+        // Show a short "game over" then automatically restart
+        startGame();
+      }, 2000);
+      return () => clearTimeout(t);
     }
   }, [state]);
 
@@ -396,7 +396,7 @@ export default function PlayGame() {
                 )}
                 {state === "locked" && (
                   <Pill className="bg-red-600/80">
-                    ❌ Out of attempts. Try Again or go Next.
+                    ❌ Out of attempts. Game Over
                   </Pill>
                 )}
               </div>
@@ -406,24 +406,13 @@ export default function PlayGame() {
 
               {/* Action Buttons */}
               <div className="flex justify-center gap-6 px-6 py-4">
-                {state === "locked" && (
-                  <button onClick={tryAgainSameQuestion}
-                    className="px-8 py-4 rounded-lg bg-orange-600 hover:bg-orange-700 transition-all duration-300 text-white font-bold text-lg shadow-lg hover:shadow-xl border border-orange-500 hover:border-orange-400 transform hover:scale-105 active:scale-95">
-                    🔄 Try Again
-                  </button>
-                )}
                 {state === "correct" && (
                   <button onClick={nextQuestion}
                     className="px-10 py-4 rounded-lg bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 transition-all duration-300 text-white font-bold text-lg shadow-lg hover:shadow-xl border border-violet-500 hover:border-violet-400 transform hover:scale-105 active:scale-95">
                     ➡️ Next
                   </button>
                 )}
-                {state === "locked" && (
-                  <button onClick={nextQuestion}
-                    className="px-10 py-4 rounded-lg bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 transition-all duration-300 text-white font-bold text-lg shadow-lg hover:shadow-xl border border-violet-500 hover:border-violet-400 transform hover:scale-105 active:scale-95">
-                    ➡️ Next
-                  </button>
-                )}
+                {/* When locked we auto-restart the game; no action buttons shown here */}
               </div>
 
               {/* Restart Game Button */}

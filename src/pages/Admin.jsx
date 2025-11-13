@@ -14,8 +14,19 @@ const Admin = () => {
   const [editingQuestionId, setEditingQuestionId] = React.useState(null);
   const [editingQuestion, setEditingQuestion] = React.useState({ text: "", answer: "" });
   const [editSaving, setEditSaving] = React.useState(false);
+  // Pagination for questions
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const pageSize = 6;
   const [countryOptions, setCountryOptions] = React.useState([]);
   const [toast, setToast] = React.useState("");
+  // Tourist spots management
+  const [touristCountry, setTouristCountry] = React.useState("");
+  const [touristSpots, setTouristSpots] = React.useState([]);
+  const [loadingSpots, setLoadingSpots] = React.useState(false);
+  const [newSpot, setNewSpot] = React.useState({ name: "", description: "" });
+  const [editingSpotId, setEditingSpotId] = React.useState(null);
+  const [editingSpot, setEditingSpot] = React.useState({ name: "", description: "" });
+  const [spotSaving, setSpotSaving] = React.useState(false);
   const backupRef = React.useRef(null);
   const [undoVisible, setUndoVisible] = React.useState(false);
   const undoTimerRef = React.useRef(null);
@@ -84,9 +95,29 @@ const Admin = () => {
 
         options = Array.from(new Set(options)).sort((a, b) => a.localeCompare(b));
         setCountryOptions(options);
+        if (options.length > 0) setTouristCountry(options[0]);
       })
       .catch(() => setCountryOptions([]));
   }, []);
+
+  // Load tourist spots for selected country
+  React.useEffect(() => {
+    async function load() {
+      if (!touristCountry) return setTouristSpots([]);
+      setLoadingSpots(true);
+      try {
+        const res = await fetch(`${API_BASE}/api/spots?country=${encodeURIComponent(touristCountry)}`, { credentials: 'include' });
+        if (!res.ok) throw new Error('Failed to load spots');
+        const data = await res.json();
+        setTouristSpots(Array.isArray(data) ? data : []);
+      } catch (err) {
+        setTouristSpots([]);
+      } finally {
+        setLoadingSpots(false);
+      }
+    }
+    load();
+  }, [touristCountry]);
 
 
   async function addQuestion(e) {
@@ -104,7 +135,12 @@ const Admin = () => {
       });
       if (!res.ok) throw new Error("Failed to add question");
       const created = await res.json();
-      setQuestions(prev => [...prev, created]);
+      setQuestions(prev => {
+        const next = [...prev, created];
+        // go to last page so new item is visible
+        setCurrentPage(Math.max(1, Math.ceil(next.length / pageSize)));
+        return next;
+      });
       setNewQuestion({ text: "", answer: "" });
       // show success modal instead of toast
       setResultModalType('success');
@@ -153,7 +189,12 @@ const Admin = () => {
       const res = await fetch(`${API_BASE}/api/${resource}/${id}`, { method: "DELETE", credentials: "include" });
       if (!res.ok) throw new Error('Failed to delete');
       if (resource === "questions") {
-        setQuestions(prev => prev.filter(r => r.id !== id));
+        setQuestions(prev => {
+          const next = prev.filter(r => r.id !== id);
+          const totalPages = Math.max(1, Math.ceil(next.length / pageSize));
+          setCurrentPage((p) => Math.min(p, totalPages));
+          return next;
+        });
         // show success modal for delete
         setResultModalType('success');
         setResultModalMessage('Question deleted');
@@ -226,6 +267,12 @@ const Admin = () => {
     return () => clearTimeout(t);
   }, [toast]);
 
+  // Keep currentPage inside valid bounds when questions change
+  React.useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil((questions || []).length / pageSize));
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [questions, currentPage]);
+
   React.useEffect(() => {
     return () => {
       if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
@@ -278,8 +325,8 @@ const Admin = () => {
   return (
     <div
       style={{
-        height: "100vh",
-        overflow: "hidden",
+        minHeight: "100vh",
+        overflow: "auto",
         color: "#e5e7eb",
         background:
           "radial-gradient(1200px 600px at 20% 0%, #0b1b3a 0%, #050a18 60%, #02040a 100%)",
@@ -373,9 +420,9 @@ const Admin = () => {
             // make left column slightly narrower so there's visible space between columns
             gridTemplateColumns: "420px 1fr",
             gap: 24,
-            // Constrain section height so header stays visible and inner columns fit
-            maxHeight: 'calc(100vh - 140px)',
-            overflow: 'hidden',
+            // allow the section to grow and page to scroll so lower controls are reachable
+            maxHeight: undefined,
+            overflow: 'visible',
           }}
         >
           {/* LEFT COLUMN */}
@@ -623,6 +670,110 @@ const Admin = () => {
                 </button>
               </form>
             </div>
+
+            {/* TOURIST SPOTS CARD (spans both columns) */}
+            <div style={{ gridColumn: '1 / -1', background: '#071028', border: '1px solid #213148', borderRadius: 12, padding: 16 }}>
+              <h2 style={{ fontSize: 18, fontWeight: 800, marginBottom: 8 }}>Tourist Spots</h2>
+              <div style={{ display: 'grid', gap: 8 }}>
+                <label style={{ color: '#cbd5e1', fontSize: 13 }}>Select country</label>
+                <select value={touristCountry} onChange={e => setTouristCountry(e.target.value)} style={{ padding: 8, borderRadius: 8, border: '1px solid #263455', background: '#0a1020', color: '#e5e7eb', maxWidth: 320 }}>
+                  {countryOptions.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+
+                <div style={{ marginTop: 8 }}>
+                  <div style={{ color: '#93c5fd', marginBottom: 6 }}>Spots for {touristCountry || '—'}</div>
+                  {loadingSpots ? <div style={{ color: '#cbd5e1' }}>Loading…</div> : (
+                    <ul style={{ display: 'grid', gap: 8 }}>
+                      {touristSpots.length === 0 && <li style={{ color: '#94a3b8' }}>No spots added</li>}
+                      {touristSpots.map(s => (
+                        <li key={s.id} style={{ background: '#0a1020', border: '1px solid #263455', borderRadius: 8, padding: 10 }}>
+                          {editingSpotId === s.id ? (
+                                      <form onSubmit={async (e) => {
+                                        e.preventDefault();
+                                        setSpotSaving(true);
+                                        try {
+                                          const res = await fetch(`${API_BASE}/api/spots/${s.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(editingSpot) });
+                                          if (!res.ok) {
+                                            const body = await res.json().catch(() => null);
+                                            throw new Error(body?.message || `Failed to update spot (${res.status})`);
+                                          }
+                                          const updated = await res.json();
+                                          setTouristSpots(prev => prev.map(p => p.id === updated.id ? updated : p));
+                                          setEditingSpotId(null);
+                                          setEditingSpot({ name: '', description: '' });
+                                          setToast('Spot updated');
+                                        } catch (err) {
+                                          console.error('Update spot error', err);
+                                          setResultModalType('error'); setResultModalMessage(err.message || 'Failed to update spot'); setResultModalVisible(true);
+                                        } finally { setSpotSaving(false); }
+                                      }}>
+                                        <input value={editingSpot.name} onChange={e => setEditingSpot(s => ({ ...s, name: e.target.value }))} placeholder="Name" style={{ width: '100%', marginBottom: 6, padding: 8, borderRadius: 8, border: '1px solid #263455', background: '#0a1020', color: '#e5e7eb' }} disabled={spotSaving} />
+                                        <textarea value={editingSpot.description} onChange={e => setEditingSpot(s => ({ ...s, description: e.target.value }))} placeholder="Description" style={{ width: '100%', marginBottom: 6, padding: 8, borderRadius: 8, border: '1px solid #263455', background: '#0a1020', color: '#e5e7eb' }} disabled={spotSaving} />
+                                        <div style={{ display: 'flex', gap: 8 }}>
+                                          <button className="admin-btn btn-save btn-sm" type="submit" disabled={spotSaving}>Save</button>
+                                          <button className="admin-btn btn-neutral btn-sm" type="button" onClick={() => { setEditingSpotId(null); setEditingSpot({ name: '', description: '' }); }}>Cancel</button>
+                                        </div>
+                                      </form>
+                                    ) : (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <div>
+                                <div style={{ fontWeight: 800 }}>{s.name}</div>
+                                <div style={{ color: '#cbd5e1', fontSize: 13 }}>{s.description}</div>
+                              </div>
+                              <div style={{ display: 'flex', gap: 8 }}>
+                                <button className="admin-btn btn-primary btn-sm" onClick={() => { setEditingSpotId(s.id); setEditingSpot({ name: s.name, description: s.description }); }}>Edit</button>
+                                <button className="admin-btn btn-danger btn-sm" onClick={async () => {
+                                  if (!confirm('Delete this spot?')) return;
+                                  try {
+                                    const res = await fetch(`${API_BASE}/api/spots/${s.id}`, { method: 'DELETE', credentials: 'include' });
+                                    if (!res.ok) throw new Error('Failed to delete');
+                                    setTouristSpots(prev => prev.filter(p => p.id !== s.id));
+                                    setToast('Spot deleted');
+                                  } catch (err) {
+                                    setResultModalType('error'); setResultModalMessage(err.message || 'Failed to delete spot'); setResultModalVisible(true);
+                                  }
+                                }}>Delete</button>
+                              </div>
+                            </div>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+
+                <div style={{ marginTop: 8 }}>
+                  <h4 style={{ margin: '6px 0', fontSize: 14, fontWeight: 800 }}>Add new spot</h4>
+                  <form onSubmit={async (e) => {
+                    e.preventDefault();
+                    if (!touristCountry) return setResultModalVisible(true);
+                    const name = (newSpot.name || '').trim();
+                    if (!name) {
+                      setResultModalType('error'); setResultModalMessage('Name required'); setResultModalVisible(true); return;
+                    }
+                    setSpotSaving(true);
+                    try {
+                      const res = await fetch(`${API_BASE}/api/spots`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ country: touristCountry, name, description: newSpot.description }) });
+                      if (!res.ok) {
+                        const body = await res.json().catch(() => null);
+                        throw new Error(body?.message || `Failed to add spot (${res.status})`);
+                      }
+                      const created = await res.json();
+                      setTouristSpots(prev => [...prev, created]);
+                      setNewSpot({ name: '', description: '' });
+                      setToast('Spot added');
+                    } catch (err) {
+                      console.error('Add spot error', err);
+                      setResultModalType('error'); setResultModalMessage(err.message || 'Failed to add spot'); setResultModalVisible(true);
+                    } finally { setSpotSaving(false); }
+                  }}>
+                    <input value={newSpot.name} onChange={e => setNewSpot(s => ({ ...s, name: e.target.value }))} placeholder="Spot name" style={{ width: '100%', marginBottom: 6, padding: 8, borderRadius: 8, border: '1px solid #263455', background: '#0a1020', color: '#e5e7eb' }} disabled={spotSaving} />
+                    <textarea value={newSpot.description} onChange={e => setNewSpot(s => ({ ...s, description: e.target.value }))} placeholder="Description (optional)" style={{ width: '100%', marginBottom: 6, padding: 8, borderRadius: 8, border: '1px solid #263455', background: '#0a1020', color: '#e5e7eb' }} disabled={spotSaving} />
+                    <button className="admin-btn btn-primary btn-sm" type="submit" disabled={spotSaving}>Add Spot</button>
+                  </form>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* QUESTIONS CARD */}
@@ -771,140 +922,186 @@ const Admin = () => {
 
             {/* LIST QUESTIONS */}
             <div className="admin-scroll" style={{ marginTop: 12, maxHeight: 'calc(100% - 220px)', overflowY: 'auto', paddingRight: 8 }}>
-              <ul style={{ display: "grid", gap: 8 }}>
-              {questions.map((q) => (
-                <li
-                  key={q.id}
-                  style={{
-                    background: "#0a1020",
-                    border: "1px solid #263455",
-                    borderRadius: 8,
-                    padding: "10px 12px",
-                  }}
-                >
-                  {editingQuestionId === q.id ? (
-                    <form onSubmit={saveEditQuestion} style={{ display: "grid", gap: 8 }}>
-                      <input
-                        value={editingQuestion.text}
-                        onChange={(e) =>
-                          setEditingQuestion((s) => ({ ...s, text: e.target.value }))
-                        }
-                        placeholder="Prompt"
-                        style={{
-                          padding: 8,
-                          borderRadius: 8,
-                          border: "1px solid #263455",
-                          background: "#0a1020",
-                          color: "#e5e7eb",
-                        }}
-                      />
-                      <select
-                        value={editingQuestion.answer}
-                        onChange={(e) =>
-                          setEditingQuestion((s) => ({ ...s, answer: e.target.value }))
-                        }
-                        style={{
-                          padding: 8,
-                          borderRadius: 8,
-                          border: "1px solid #263455",
-                          background: "#0a1020",
-                          color: "#e5e7eb",
-                        }}
-                      >
-                        <option value="">Select answer country…</option>
-                        {countryOptions.map((name) => (
-                          <option key={name} value={name}>
-                            {name}
-                          </option>
-                        ))}
-                      </select>
-                      <div style={{ display: "flex", gap: 8 }}>
-                        <button
-                          type="submit"
-                          disabled={editSaving}
-                          className="admin-btn btn-save btn-sm"
-                        >
-                          {editSaving ? 'Saving…' : 'Save'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setEditingQuestionId(null)}
-                          className="admin-btn btn-neutral btn-sm"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </form>
-                  ) : (
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                      }}
-                    >
-                      <span>
-                        {q.text} · Ans: {q.answer}
-                      </span>
-                      <div style={{ display: "flex", gap: 8 }}>
-                        <button
-                          onClick={() => startEditQuestion(q)}
-                          className="admin-btn btn-primary btn-sm"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => {
-                            // Ask for confirmation before deleting a single question and allow undo
-                            setConfirmMessage('Delete this question? You will be able to undo for a short time.');
-                            confirmActionRef.current = async () => {
-                              backupRef.current = [q];
-                              try {
-                                const res = await fetch(`${API_BASE}/api/questions/${q.id}`, {
-                                  method: "DELETE",
-                                  credentials: "include",
-                                });
-                                if (!res.ok) throw new Error('Failed to delete question');
-                                setQuestions(prev => prev.filter(r => r.id !== q.id));
-
-                                // show undo snackbar
-                                setUndoData({ items: backupRef.current });
-                                setUndoVisible(true);
-                                if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
-                                undoTimerRef.current = setTimeout(() => {
-                                  setUndoVisible(false);
-                                  setUndoData(null);
-                                  backupRef.current = null;
-                                  undoTimerRef.current = null;
-                                }, 6000);
-
-                                // show result modal with undo option
-                                setResultModalType('success');
-                                setResultModalMessage('Question deleted');
-                                setResultModalHasUndo(true);
-                                setResultModalVisible(true);
-                              } catch (err) {
-                                setResultModalType('error');
-                                setResultModalMessage(err.message || 'Unable to delete question. Please try again.');
-                                setResultModalHasUndo(false);
-                                setResultModalVisible(true);
-                                backupRef.current = null;
-                              } finally {
-                                setConfirmVisible(false);
-                              }
-                            };
-                            setConfirmVisible(true);
+              {(() => {
+                const totalPages = Math.max(1, Math.ceil((questions || []).length / pageSize));
+                const start = (currentPage - 1) * pageSize;
+                const pageQuestions = (questions || []).slice(start, start + pageSize);
+                return (
+                  <>
+                    <ul style={{ display: "grid", gap: 8 }}>
+                      {pageQuestions.map((q) => (
+                        <li
+                          key={q.id}
+                          style={{
+                            background: "#0a1020",
+                            border: "1px solid #263455",
+                            borderRadius: 8,
+                            padding: "10px 12px",
                           }}
-                          className="admin-btn btn-danger btn-sm"
                         >
-                          Delete
-                        </button>
+                          {editingQuestionId === q.id ? (
+                            <form onSubmit={saveEditQuestion} style={{ display: "grid", gap: 8 }}>
+                              <input
+                                value={editingQuestion.text}
+                                onChange={(e) =>
+                                  setEditingQuestion((s) => ({ ...s, text: e.target.value }))
+                                }
+                                placeholder="Prompt"
+                                style={{
+                                  padding: 8,
+                                  borderRadius: 8,
+                                  border: "1px solid #263455",
+                                  background: "#0a1020",
+                                  color: "#e5e7eb",
+                                }}
+                              />
+                              <select
+                                value={editingQuestion.answer}
+                                onChange={(e) =>
+                                  setEditingQuestion((s) => ({ ...s, answer: e.target.value }))
+                                }
+                                style={{
+                                  padding: 8,
+                                  borderRadius: 8,
+                                  border: "1px solid #263455",
+                                  background: "#0a1020",
+                                  color: "#e5e7eb",
+                                }}
+                              >
+                                <option value="">Select answer country…</option>
+                                {countryOptions.map((name) => (
+                                  <option key={name} value={name}>
+                                    {name}
+                                  </option>
+                                ))}
+                              </select>
+                              <div style={{ display: "flex", gap: 8 }}>
+                                <button
+                                  type="submit"
+                                  disabled={editSaving}
+                                  className="admin-btn btn-save btn-sm"
+                                >
+                                  {editSaving ? 'Saving…' : 'Save'}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingQuestionId(null)}
+                                  className="admin-btn btn-neutral btn-sm"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </form>
+                          ) : (
+                            <div
+                              style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                              }}
+                            >
+                              <span>
+                                {q.text} · Ans: {q.answer}
+                              </span>
+                              <div style={{ display: "flex", gap: 8 }}>
+                                <button
+                                  onClick={() => startEditQuestion(q)}
+                                  className="admin-btn btn-primary btn-sm"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    // Ask for confirmation before deleting a single question and allow undo
+                                    setConfirmMessage('Delete this question? You will be able to undo for a short time.');
+                                    confirmActionRef.current = async () => {
+                                      backupRef.current = [q];
+                                      try {
+                                        const res = await fetch(`${API_BASE}/api/questions/${q.id}`, {
+                                          method: "DELETE",
+                                          credentials: "include",
+                                        });
+                                        if (!res.ok) throw new Error('Failed to delete question');
+                                        setQuestions(prev => {
+                                          const next = prev.filter(r => r.id !== q.id);
+                                          const totalPagesAfter = Math.max(1, Math.ceil(next.length / pageSize));
+                                          setCurrentPage((p) => Math.min(p, totalPagesAfter));
+                                          return next;
+                                        });
+
+                                        // show undo snackbar
+                                        setUndoData({ items: backupRef.current });
+                                        setUndoVisible(true);
+                                        if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+                                        undoTimerRef.current = setTimeout(() => {
+                                          setUndoVisible(false);
+                                          setUndoData(null);
+                                          backupRef.current = null;
+                                          undoTimerRef.current = null;
+                                        }, 6000);
+
+                                        // show result modal with undo option
+                                        setResultModalType('success');
+                                        setResultModalMessage('Question deleted');
+                                        setResultModalHasUndo(true);
+                                        setResultModalVisible(true);
+                                      } catch (err) {
+                                        setResultModalType('error');
+                                        setResultModalMessage(err.message || 'Unable to delete question. Please try again.');
+                                        setResultModalHasUndo(false);
+                                        setResultModalVisible(true);
+                                        backupRef.current = null;
+                                      } finally {
+                                        setConfirmVisible(false);
+                                      }
+                                    };
+                                    setConfirmVisible(true);
+                                  }}
+                                  className="admin-btn btn-danger btn-sm"
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </li>
+                      ))}
+                      {pageQuestions.length === 0 && <li style={{ color: '#94a3b8' }}>No questions available</li>}
+                    </ul>
+
+                    {/* Pagination controls */}
+                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, marginTop: 12 }}>
+                      <button className="admin-btn btn-neutral btn-sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>Prev</button>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                        {(() => {
+                          const pages = [];
+                          const range = 2; // show current ± range
+                          const total = totalPages;
+                          const startP = Math.max(1, currentPage - range);
+                          const endP = Math.min(total, currentPage + range);
+                          if (startP > 1) {
+                            pages.push(1);
+                            if (startP > 2) pages.push('...');
+                          }
+                          for (let i = startP; i <= endP; i++) pages.push(i);
+                          if (endP < total) {
+                            if (endP < total - 1) pages.push('...');
+                            pages.push(total);
+                          }
+                          return pages.map((p, idx) => (
+                            typeof p === 'number' ? (
+                              <button key={p} className={`admin-btn ${p === currentPage ? 'btn-primary' : 'btn-neutral'} btn-sm`} onClick={() => setCurrentPage(p)}>{p}</button>
+                            ) : (
+                              <span key={'dots-' + idx} style={{ color: '#94a3b8', padding: '6px 8px' }}>{p}</span>
+                            )
+                          ));
+                        })()}
                       </div>
+                      <button className="admin-btn btn-neutral btn-sm" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>Next</button>
                     </div>
-                  )}
-                </li>
-              ))}
-              </ul>
+                  </>
+                );
+              })()}
             </div>
           </div>
         </section>
