@@ -423,8 +423,8 @@ const Admin = () => {
           <button
             onClick={handleLogout}
             className="admin-btn btn-danger btn-sm"
-          >
-            Back Home
+          > 
+            Logout
           </button>
 
           <h1 style={{ fontSize: 28, fontWeight: 800 }}>Admin Panel</h1>
