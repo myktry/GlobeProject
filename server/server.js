@@ -77,9 +77,16 @@ app.post("/api/questions", (req, res) => {
   if (!text || !answer) {
     return res.status(400).json({ message: "Invalid question data" });
   }
-
-  const newQuestion = addQuestion({ text, answer });
-  res.json(newQuestion);
+  try {
+    const newQuestion = addQuestion({ text, answer });
+    res.json(newQuestion);
+  } catch (err) {
+    if (err && err.code === 'DUPLICATE_QUESTION') {
+      return res.status(409).json({ message: 'Question already exists' });
+    }
+    console.error('Failed to add question:', err);
+    return res.status(500).json({ message: err.message || 'Failed to add question' });
+  }
   });
 
 // ✅ Update a question by id
