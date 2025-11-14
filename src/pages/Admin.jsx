@@ -133,7 +133,12 @@ const Admin = () => {
         credentials: "include",
         body: JSON.stringify({ text, answer }),
       });
-      if (!res.ok) throw new Error("Failed to add question");
+      if (!res.ok) {
+        // try to extract server message
+        let body = null;
+        try { body = await res.json(); } catch (_) { }
+        throw new Error((body && body.message) || `Failed to add question (${res.status})`);
+      }
       const created = await res.json();
       setQuestions(prev => {
         const next = [...prev, created];

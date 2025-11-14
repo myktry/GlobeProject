@@ -138,6 +138,18 @@ export function deleteAllSpotsByCountry(country) {
 }
 
 export function addQuestion({ id, text, answer }) {
+  if (!text || !text.toString().trim()) {
+    throw new Error('Invalid question text');
+  }
+  const normalized = text.toString().trim().toLowerCase();
+  // Prevent duplicates by comparing normalized text
+  const existing = queryOne(`SELECT id FROM questions WHERE lower(trim(text)) = ? LIMIT 1`, [normalized]);
+  if (existing) {
+    const e = new Error('Question already exists');
+    e.code = 'DUPLICATE_QUESTION';
+    throw e;
+  }
+
   const generatedId = id || Math.random().toString(36).substr(2, 8);
   db.run(`INSERT INTO questions (id, text, answer) VALUES (?, ?, ?);`, [generatedId, text, answer ?? ""]);
   persist();
