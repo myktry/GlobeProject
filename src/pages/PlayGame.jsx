@@ -468,11 +468,13 @@ export default function PlayGame() {
         <div className="relative z-10">
           {/* Header Section */}
           <div className="flex items-center justify-between p-6 bg-gradient-to-r from-black/30 via-black/20 to-black/30 backdrop-blur-md">
-            <Link
-              to="/"
-              aria-label="Back to Home"
-              className="inline-flex items-center gap-2"
-            >
+  <Link
+    to="/"
+    aria-label="Back to Home"
+    className="inline-flex items-center gap-2"
+    style={{ marginLeft: "12px", marginTop: "8px" }}
+  >
+
               <IconButton ariaLabel="Back to home" size={40} style={{ backdropFilter: 'blur(6px)' }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
                   <path d="M15 18l-6-6 6-6" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
