@@ -2,103 +2,119 @@
 import React from "react";
 import { Link } from "react-router-dom";
 
-const API_BASE = "http://localhost:8000"; // ✅ Backend base URL
+const API_BASE = "http://localhost:8000"; // backend URL
 
 const Admin = () => {
-  const [settings, setSettings] = React.useState({ rounds: 3, attempts: 2 });
-  const [questions, setQuestions] = React.useState([]);
 
+
+  // AUTH STATES
+  const [authChecked, setAuthChecked] = React.useState(false);
+  const [isAdmin, setIsAdmin] = React.useState(false);
+
+  // GLOBAL STATES
+  const [settings, setSettings] = React.useState({ rounds: 3, attempts: 2 });
   const [editSettings, setEditSettings] = React.useState({ rounds: 3, attempts: 2 });
+  const [savingSettings, setSavingSettings] = React.useState(false);
+  const [justSavedSettings, setJustSavedSettings] = React.useState(false);
+
+  const [questions, setQuestions] = React.useState([]);
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const pageSize = 6;
+
+  const [countryOptions, setCountryOptions] = React.useState([]);
+  const [toast, setToast] = React.useState("");
+
   const [newQuestion, setNewQuestion] = React.useState({ text: "", answer: "" });
   const [savingQuestion, setSavingQuestion] = React.useState(false);
   const [editingQuestionId, setEditingQuestionId] = React.useState(null);
   const [editingQuestion, setEditingQuestion] = React.useState({ text: "", answer: "" });
   const [editSaving, setEditSaving] = React.useState(false);
-  // Pagination for questions
-  const [currentPage, setCurrentPage] = React.useState(1);
-  const pageSize = 6;
-  const [countryOptions, setCountryOptions] = React.useState([]);
-  const [toast, setToast] = React.useState("");
-  // Tourist spots management
+
+  // Tourist spots
   const [touristCountry, setTouristCountry] = React.useState("");
   const [touristSpots, setTouristSpots] = React.useState([]);
-  const [loadingSpots, setLoadingSpots] = React.useState(false);
   const [newSpot, setNewSpot] = React.useState({ name: "", description: "" });
   const [editingSpotId, setEditingSpotId] = React.useState(null);
   const [editingSpot, setEditingSpot] = React.useState({ name: "", description: "" });
   const [spotSaving, setSpotSaving] = React.useState(false);
-  const backupRef = React.useRef(null);
+  const [loadingSpots, setLoadingSpots] = React.useState(false);
+
+  // Undo + Modals
   const [undoVisible, setUndoVisible] = React.useState(false);
-  const undoTimerRef = React.useRef(null);
   const [undoData, setUndoData] = React.useState(null);
+  const undoTimerRef = React.useRef(null);
+  const backupRef = React.useRef(null);
   const confirmActionRef = React.useRef(null);
   const [confirmVisible, setConfirmVisible] = React.useState(false);
   const [confirmMessage, setConfirmMessage] = React.useState("");
   const [resultModalVisible, setResultModalVisible] = React.useState(false);
   const [resultModalMessage, setResultModalMessage] = React.useState("");
+  const [resultModalType, setResultModalType] = React.useState("success");
   const [resultModalHasUndo, setResultModalHasUndo] = React.useState(false);
-  const [resultModalType, setResultModalType] = React.useState('success');
 
-  // Refs to align card heights: measure Settings card and apply its height to Admin Account
+  // Layout
   const settingsRef = React.useRef(null);
   const [settingsHeight, setSettingsHeight] = React.useState(null);
 
+  // AUTH GUARD
   React.useEffect(() => {
-    function measure() {
-      try {
-        const h = settingsRef.current?.offsetHeight || null;
-        setSettingsHeight(h);
-      } catch (e) { /* ignore */ }
-    }
+    fetch(`${API_BASE}/api/me`, { credentials: "include" })
+      .then(res => res.json())
+      .then(data => {
+        if (data.loggedIn && data.user && data.user.role === "admin") {
+          setIsAdmin(true);
+        } else {
+          window.location.href = "/admin/login";
+        }
+      })
+      .catch(() => window.location.href = "/admin/login")
+      .finally(() => setAuthChecked(true));
+  }, []);
+
+
+  function handleLogout() {
+    fetch(`${API_BASE}/api/logout`, {
+      method: "POST",
+      credentials: "include",
+    })
+      .finally(() => { window.location.href = "/LandingPage"; });
+  }
+
+  React.useEffect(() => {
+    const measure = () => {
+      if (settingsRef.current)
+        setSettingsHeight(settingsRef.current.offsetHeight);
+    };
     measure();
-    window.addEventListener('resize', measure);
-    return () => window.removeEventListener('resize', measure);
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
   }, [settings, questions]);
 
+
+  // Load settings + questions + countries
   React.useEffect(() => {
-    // ✅ check authentication + load settings + questions
-    Promise.all([
-      fetch(`${API_BASE}/api/me`, { credentials: "include" }).then(r => r.json())
-    ])
-      .then(([me]) => {
-        if (!me?.authenticated) {
-          window.location.href = "/admin/login";
-          return;
-        }
-        Promise.all([
-          fetch(`${API_BASE}/api/settings`, { credentials: "include" }).then(r => r.json()),
-          fetch(`${API_BASE}/api/questions`, { credentials: "include" }).then(r => r.json()),
-        ])
-          .then(([s, q]) => {
-            setSettings(s);
-            setEditSettings(s);
-            setQuestions(q);
-          })
-          .catch(() => { });
-      })
-      .catch(() => {
-        window.location.href = "/admin/login";
+    fetch(`${API_BASE}/api/settings`, { credentials: "include" })
+      .then(r => r.json())
+      .then(data => {
+        setSettings(data);
+        setEditSettings(data);
       });
 
-    // ✅ load country names
+    fetch(`${API_BASE}/api/questions`, { credentials: "include" })
+      .then(r => r.json())
+      .then(setQuestions);
+
     fetch("https://restcountries.com/v3.1/all?fields=name")
       .then(r => r.json())
       .then(list => {
-        let options = list
-          .map(c => c?.name?.common)
-          .filter(Boolean);
-
-        // Ensure 'England' is available as an option even though some country
-        // datasets return it as part of 'United Kingdom' rather than a top-level
-        // country name. Add it if missing, then dedupe and sort.
-        if (!options.includes("England")) options.push("England");
-
-        options = Array.from(new Set(options)).sort((a, b) => a.localeCompare(b));
-        setCountryOptions(options);
-        if (options.length > 0) setTouristCountry(options[0]);
-      })
-      .catch(() => setCountryOptions([]));
+        let names = list.map(c => c.name.common).filter(Boolean);
+        if (!names.includes("England")) names.push("England");
+        names = [...new Set(names)].sort();
+        setCountryOptions(names);
+        setTouristCountry(names[0]);
+      });
   }, []);
+
 
   // Load tourist spots for selected country
   React.useEffect(() => {
@@ -118,7 +134,6 @@ const Admin = () => {
     }
     load();
   }, [touristCountry]);
-
 
   async function addQuestion(e) {
     e.preventDefault();
@@ -162,9 +177,6 @@ const Admin = () => {
       setSavingQuestion(false);
     }
   }
-
-  const [savingSettings, setSavingSettings] = React.useState(false);
-  const [justSavedSettings, setJustSavedSettings] = React.useState(false);
 
   async function saveSettings(e) {
     e.preventDefault();
@@ -251,11 +263,11 @@ const Admin = () => {
       setQuestions(prev => prev.map(q => (q.id === updated.id ? updated : q)));
       setEditingQuestionId(null);
       setEditingQuestion({ text: "", answer: "" });
-  // show success modal instead of toast
-  setResultModalType('success');
-  setResultModalMessage('Question updated');
-  setResultModalHasUndo(false);
-  setResultModalVisible(true);
+      // show success modal instead of toast
+      setResultModalType('success');
+      setResultModalMessage('Question updated');
+      setResultModalHasUndo(false);
+      setResultModalVisible(true);
     } catch (err) {
       setResultModalType('error');
       setResultModalMessage(err.message || 'Unable to update question');
@@ -407,16 +419,16 @@ const Admin = () => {
             </div>
           </div>
         )}
-          <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <Link
-              to="/"
-              className="admin-btn btn-primary btn-sm"
-              style={{ textDecoration: 'none' }}
-            >
-              Back Home
-            </Link>
-            <h1 style={{ fontSize: 28, fontWeight: 800 }}>Admin Panel</h1>
-          </header>
+        <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <button
+            onClick={handleLogout}
+            className="admin-btn btn-danger btn-sm"
+          >
+            Back Home
+          </button>
+
+          <h1 style={{ fontSize: 28, fontWeight: 800 }}>Admin Panel</h1>
+        </header>
 
         <section
           style={{
@@ -555,7 +567,7 @@ const Admin = () => {
                       Number(editSettings.rounds) > questions.length
                       ? `Rounds cannot exceed number of questions (${questions.length})`
                       : undefined;
-                    return (
+                  return (
                     <button
                       type="submit"
                       disabled={invalid || savingSettings}
@@ -693,33 +705,33 @@ const Admin = () => {
                       {touristSpots.map(s => (
                         <li key={s.id} style={{ background: '#0a1020', border: '1px solid #263455', borderRadius: 8, padding: 10 }}>
                           {editingSpotId === s.id ? (
-                                      <form onSubmit={async (e) => {
-                                        e.preventDefault();
-                                        setSpotSaving(true);
-                                        try {
-                                          const res = await fetch(`${API_BASE}/api/spots/${s.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(editingSpot) });
-                                          if (!res.ok) {
-                                            const body = await res.json().catch(() => null);
-                                            throw new Error(body?.message || `Failed to update spot (${res.status})`);
-                                          }
-                                          const updated = await res.json();
-                                          setTouristSpots(prev => prev.map(p => p.id === updated.id ? updated : p));
-                                          setEditingSpotId(null);
-                                          setEditingSpot({ name: '', description: '' });
-                                          setToast('Spot updated');
-                                        } catch (err) {
-                                          console.error('Update spot error', err);
-                                          setResultModalType('error'); setResultModalMessage(err.message || 'Failed to update spot'); setResultModalVisible(true);
-                                        } finally { setSpotSaving(false); }
-                                      }}>
-                                        <input value={editingSpot.name} onChange={e => setEditingSpot(s => ({ ...s, name: e.target.value }))} placeholder="Name" style={{ width: '100%', marginBottom: 6, padding: 8, borderRadius: 8, border: '1px solid #263455', background: '#0a1020', color: '#e5e7eb' }} disabled={spotSaving} />
-                                        <textarea value={editingSpot.description} onChange={e => setEditingSpot(s => ({ ...s, description: e.target.value }))} placeholder="Description" style={{ width: '100%', marginBottom: 6, padding: 8, borderRadius: 8, border: '1px solid #263455', background: '#0a1020', color: '#e5e7eb' }} disabled={spotSaving} />
-                                        <div style={{ display: 'flex', gap: 8 }}>
-                                          <button className="admin-btn btn-save btn-sm" type="submit" disabled={spotSaving}>Save</button>
-                                          <button className="admin-btn btn-neutral btn-sm" type="button" onClick={() => { setEditingSpotId(null); setEditingSpot({ name: '', description: '' }); }}>Cancel</button>
-                                        </div>
-                                      </form>
-                                    ) : (
+                            <form onSubmit={async (e) => {
+                              e.preventDefault();
+                              setSpotSaving(true);
+                              try {
+                                const res = await fetch(`${API_BASE}/api/spots/${s.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(editingSpot) });
+                                if (!res.ok) {
+                                  const body = await res.json().catch(() => null);
+                                  throw new Error(body?.message || `Failed to update spot (${res.status})`);
+                                }
+                                const updated = await res.json();
+                                setTouristSpots(prev => prev.map(p => p.id === updated.id ? updated : p));
+                                setEditingSpotId(null);
+                                setEditingSpot({ name: '', description: '' });
+                                setToast('Spot updated');
+                              } catch (err) {
+                                console.error('Update spot error', err);
+                                setResultModalType('error'); setResultModalMessage(err.message || 'Failed to update spot'); setResultModalVisible(true);
+                              } finally { setSpotSaving(false); }
+                            }}>
+                              <input value={editingSpot.name} onChange={e => setEditingSpot(s => ({ ...s, name: e.target.value }))} placeholder="Name" style={{ width: '100%', marginBottom: 6, padding: 8, borderRadius: 8, border: '1px solid #263455', background: '#0a1020', color: '#e5e7eb' }} disabled={spotSaving} />
+                              <textarea value={editingSpot.description} onChange={e => setEditingSpot(s => ({ ...s, description: e.target.value }))} placeholder="Description" style={{ width: '100%', marginBottom: 6, padding: 8, borderRadius: 8, border: '1px solid #263455', background: '#0a1020', color: '#e5e7eb' }} disabled={spotSaving} />
+                              <div style={{ display: 'flex', gap: 8 }}>
+                                <button className="admin-btn btn-save btn-sm" type="submit" disabled={spotSaving}>Save</button>
+                                <button className="admin-btn btn-neutral btn-sm" type="button" onClick={() => { setEditingSpotId(null); setEditingSpot({ name: '', description: '' }); }}>Cancel</button>
+                              </div>
+                            </form>
+                          ) : (
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                               <div>
                                 <div style={{ fontWeight: 800 }}>{s.name}</div>
@@ -1116,5 +1128,3 @@ const Admin = () => {
 };
 
 export default Admin;
-
-

@@ -16,28 +16,32 @@ const AdminLogin = () => {
   async function onSubmit(e) {
     e.preventDefault();
     setError('');
+
     try {
       setLoading(true);
-      const res = await fetch('/api/login', {
+
+      const res = await fetch('http://localhost:8000/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
-        credentials: 'include' // ✅ keep session cookies
+        credentials: 'include',
       });
 
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || 'Login failed');
+        throw new Error(body.message || body.error || 'Login failed');
       }
 
-      nav('/admin'); // redirect on success
+      nav('/admin');
+
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
   }
-  
+
+
   const handleSaveAdminAccount = async () => {
     try {
       const res = await fetch("http://localhost:8000/api/admin", {
@@ -45,7 +49,7 @@ const AdminLogin = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
       });
-  
+
       const data = await res.json();
       if (data.success) {
         // show success modal instead of browser alert
@@ -71,7 +75,7 @@ const AdminLogin = () => {
       setResultModalVisible(true);
     }
   };
-  
+
 
   return (
     <div

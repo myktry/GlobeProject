@@ -1,9 +1,8 @@
-// server/server.js
 import express from "express";
 import cors from "cors";
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
+import cookieParser from "cookie-parser";
+import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
 import {
   initDB,
   getAdmin,
@@ -23,201 +22,158 @@ import {
 } from "./db.js";
 
 const app = express();
-// Read ports from environment with sensible defaults
-const PORT = Number(process.env.SERVER_PORT || 8000);
+const PORT = process.env.SERVER_PORT || 8000;
 const VITE_PORT = Number(process.env.VITE_PORT || 5173);
-// Determine this file's directory (works regardless of process.cwd())
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
-// Middleware
-// Allow the configured Vite port and a common next-port fallback so the
-// frontend can talk to this API even when Vite auto-increments its port.
+// JWT secret
+const JWT_SECRET = "your-secret-key";
+
 app.use(
   cors({
-    origin: [
-      `http://localhost:${VITE_PORT}`,
-      `http://localhost:${VITE_PORT + 1}`,
-    ],
+    origin: "http://localhost:5173",
     credentials: true,
   })
 );
 app.use(express.json());
+app.use(cookieParser());
 
-// Path to db.json
-// Initialize DB (migrates from db.json if present) and start server after initialization
-// initDB is async now (sql.js/wasi), so start the server inside an async IIFE
+/* ------------------------------
+   JWT AUTH MIDDLEWARE
+--------------------------------*/
+function requireAuth(req, res, next) {
+  const token = req.cookies.token;
+  if (!token) return res.status(401).json({ loggedIn: false });
 
-// ✅ Login endpoint
-app.post("/api/login", (req, res) => {
+  try {
+    req.user = jwt.verify(token, JWT_SECRET);
+    next();
+  } catch (err) {
+    return res.status(401).json({ loggedIn: false });
+  }
+}
+
+/* ------------------------------
+   LOGIN
+--------------------------------*/
+app.post("/api/login", async (req, res) => {
   const { username, password } = req.body;
   const admin = getAdmin();
 
-  if (admin && username === admin.username && password === admin.password) {
-    return res.json({ success: true, message: "Login successful" });
+  if (!admin) {
+    return res.status(500).json({ message: "Admin not set in DB" });
   }
-  res.status(401).json({ success: false, message: "Invalid credentials" });
+
+  // Compare raw password (your db.js stores plain password)
+  if (username !== admin.username || password !== admin.password) {
+    return res.status(401).json({ message: "Invalid credentials" });
+  }
+
+  const token = jwt.sign(
+    { username: admin.username, role: "admin" },
+    JWT_SECRET,
+    { expiresIn: "2h" }
+  );
+
+  res.cookie("token", token, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: false, // true only if using https
+  });
+
+  return res.json({ success: true });
 });
 
-// ✅ Get authenticated user (mock)
+/* ------------------------------
+   LOGOUT
+--------------------------------*/
+app.post("/api/logout", (req, res) => {
+  res.clearCookie("token");
+  return res.json({ success: true });
+});
+
+/* ------------------------------
+   CHECK SESSION
+--------------------------------*/
 app.get("/api/me", (req, res) => {
-  const admin = getAdmin();
-  res.json({ authenticated: true, user: admin ? admin.username : null });
+  const token = req.cookies.token;
+  if (!token) return res.json({ loggedIn: false });
+
+  try {
+    const user = jwt.verify(token, JWT_SECRET);
+    return res.json({ loggedIn: true, user });
+  } catch {
+    return res.json({ loggedIn: false });
+  }
 });
 
-// ✅ Get all questions
-app.get("/api/questions", (req, res) => {
+/* ------------------------------
+   PROTECTED ROUTES
+--------------------------------*/
+app.get("/api/questions", requireAuth, (req, res) => {
   res.json(getQuestions());
 });
 
-// ✅ Add a new question
-app.post("/api/questions", (req, res) => {
+app.post("/api/questions", requireAuth, (req, res) => {
   const { text, answer } = req.body;
+  const newQuestion = addQuestion({ text, answer });
+  res.json(newQuestion);
+});
 
-  if (!text || !answer) {
-    return res.status(400).json({ message: "Invalid question data" });
-  }
-  try {
-    const newQuestion = addQuestion({ text, answer });
-    res.json(newQuestion);
-  } catch (err) {
-    if (err && err.code === 'DUPLICATE_QUESTION') {
-      return res.status(409).json({ message: 'Question already exists' });
-    }
-    console.error('Failed to add question:', err);
-    return res.status(500).json({ message: err.message || 'Failed to add question' });
-  }
-  });
-
-// ✅ Update a question by id
-app.put("/api/questions/:id", (req, res) => {
-  const { id } = req.params;
-  const { text, answer } = req.body;
-  if (!text || !answer) return res.status(400).json({ message: "Invalid question data" });
-  const updated = updateQuestion(id, text, answer);
-  if (!updated) return res.status(404).json({ message: "Question not found" });
+app.put("/api/questions/:id", requireAuth, (req, res) => {
+  const updated = updateQuestion(req.params.id, req.body.text, req.body.answer);
   res.json(updated);
 });
 
-// ✅ Delete a question by id
-app.delete("/api/questions/:id", (req, res) => {
-  const { id } = req.params;
-  const ok = deleteQuestion(id);
-  if (!ok) return res.status(404).json({ message: "Question not found" });
-  res.json({ success: true, message: "Question deleted" });
+app.delete("/api/questions/:id", requireAuth, (req, res) => {
+  deleteQuestion(req.params.id);
+  res.json({ success: true });
 });
-  
-// ✅ Get settings
-app.get("/api/settings", (req, res) => {
+
+app.delete("/api/questions", requireAuth, (req, res) => {
+  deleteAllQuestions();
+  res.json({ success: true });
+});
+
+/* SETTINGS */
+app.get("/api/settings", requireAuth, (req, res) => {
   res.json(getSettings());
 });
 
-// ✅ Update settings
-app.post("/api/settings", (req, res) => {
+app.post("/api/settings", requireAuth, (req, res) => {
   const { rounds, attempts } = req.body;
-
-  if (typeof rounds !== "number" || typeof attempts !== "number") {
-    return res.status(400).json({ message: "Invalid settings format" });
-  }
-
   setSettings(rounds, attempts);
-  res.json({ success: true, message: "Settings updated successfully" });
+  res.json({ success: true });
 });
 
-// ✅ Delete ALL questions
-app.delete("/api/questions", (req, res) => {
-  deleteAllQuestions();
-  res.json({ success: true, message: "All questions deleted" });
-  });
-
-// ✅ Get tourist spots by country
-app.get('/api/spots', (req, res) => {
-  const country = req.query.country;
-  if (!country) return res.status(400).json({ message: 'country query parameter required' });
-  try {
-    const spots = getSpotsByCountry(country);
-    res.json(spots);
-  } catch (err) {
-    res.status(500).json({ message: err.message || 'Failed to load spots' });
-  }
+/* SPOTS */
+app.get('/api/spots', requireAuth, (req, res) => {
+  const spots = getSpotsByCountry(req.query.country);
+  res.json(spots);
 });
 
-// ✅ Add a tourist spot
-app.post('/api/spots', (req, res) => {
-  const { country, name, description } = req.body;
-  console.log('POST /api/spots body:', req.body);
-  if (!country || !name) return res.status(400).json({ message: 'country and name required' });
-  try {
-    const spot = addSpot({ country, name, description });
-    console.log('Spot created:', spot && spot.id);
-    res.json(spot);
-  } catch (err) {
-    console.error('Error adding spot:', err);
-    res.status(500).json({ message: err.message || 'Failed to add spot' });
-  }
+app.post('/api/spots', requireAuth, (req, res) => {
+  const spot = addSpot(req.body);
+  res.json(spot);
 });
 
-// ✅ Update a spot
-app.put('/api/spots/:id', (req, res) => {
-  const { id } = req.params;
-  const { name, description } = req.body;
-  if (!name) return res.status(400).json({ message: 'name required' });
-  try {
-    const updated = updateSpot(id, name, description);
-    if (!updated) return res.status(404).json({ message: 'Spot not found' });
-    res.json(updated);
-  } catch (err) {
-    res.status(500).json({ message: err.message || 'Failed to update spot' });
-  }
+app.put('/api/spots/:id', requireAuth, (req, res) => {
+  const updated = updateSpot(req.params.id, req.body.name, req.body.description);
+  res.json(updated);
 });
 
-// ✅ Delete a spot
-app.delete('/api/spots/:id', (req, res) => {
-  const { id } = req.params;
-  try {
-    const ok = deleteSpot(id);
-    if (!ok) return res.status(404).json({ message: 'Spot not found' });
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ message: err.message || 'Failed to delete spot' });
-  }
+app.delete('/api/spots/:id', requireAuth, (req, res) => {
+  deleteSpot(req.params.id);
+  res.json({ success: true });
 });
 
-// ✅ Delete all spots for a country
-app.delete('/api/spots', (req, res) => {
-  const country = req.query.country;
-  if (!country) return res.status(400).json({ message: 'country query parameter required' });
-  try {
-    deleteAllSpotsByCountry(country);
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ message: err.message || 'Failed to delete spots' });
-  }
-});
-  
-  // ✅ Update admin credentials
-app.post("/api/admin", (req, res) => {
-  const { username, password } = req.body;
-
-  if (!username || !password) {
-    return res.status(400).json({ message: "Username and password are required" });
-  }
-
-  setAdmin(username, password);
-
-  res.json({ success: true, message: "Admin credentials updated successfully" });
+/* ADMIN ACCOUNT UPDATE */
+app.post("/api/admin", requireAuth, (req, res) => {
+  setAdmin(req.body.username, req.body.password);
+  res.json({ success: true });
 });
 
-
-// Start after DB init
+/* START SERVER */
 (async () => {
-  try {
-    await initDB();
-    app.listen(PORT, () => {
-      console.log(`✅ Express server running on http://localhost:${PORT}`);
-    });
-  } catch (err) {
-    console.error('Failed to initialize DB:', err);
-    process.exit(1);
-  }
+  await initDB();
+  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 })();
