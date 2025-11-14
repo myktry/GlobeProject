@@ -71,13 +71,13 @@ export default function PlayGame() {
 
   // When user runs out of attempts (locked), show message briefly then reset the game
   useEffect(() => {
-    if (state === "locked") {
-      const t = setTimeout(() => {
-        startGame();
-      }, 2000);
-      return () => clearTimeout(t);
-    }
-  }, [state]);
+  if (state === "locked") {
+    const t = setTimeout(() => {
+      setState("summary");
+    }, 1600); // matches your animation timing
+    return () => clearTimeout(t);
+  }
+}, [state]);
 
   // When user answers wrong, show the 'Incorrect' pill briefly then automatically return to asking
   useEffect(() => {
@@ -215,7 +215,7 @@ export default function PlayGame() {
 
   function nextQuestion() {
     if (round >= totalRounds) {
-      setState("summary");
+      setState("locked");
       return;
     }
     setRound((r) => r + 1);
@@ -447,7 +447,7 @@ export default function PlayGame() {
           .arcade-modal-icon { font-size: 36px; }
         }
       `}</style>
-      
+
       <div className="min-h-screen text-white relative"
         style={{
           background:
@@ -468,12 +468,12 @@ export default function PlayGame() {
         <div className="relative z-10">
           {/* Header Section */}
           <div className="flex items-center justify-between p-6 bg-gradient-to-r from-black/30 via-black/20 to-black/30 backdrop-blur-md">
-  <Link
-    to="/"
-    aria-label="Back to Home"
-    className="inline-flex items-center gap-2"
-    style={{ marginLeft: "12px", marginTop: "8px" }}
-  >
+            <Link
+              to="/"
+              aria-label="Back to Home"
+              className="inline-flex items-center gap-2"
+              style={{ marginLeft: "12px", marginTop: "8px" }}
+            >
 
               <IconButton ariaLabel="Back to home" size={40} style={{ backdropFilter: 'blur(6px)' }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
@@ -519,30 +519,30 @@ export default function PlayGame() {
               <button onClick={startGame} className="arcade-btn arcade-btn-restart side-btn">
                 🔄 Restart
               </button>
-              
+
               {/* Center: Question */}
-  <div className="question-content">
-    <div className="question-card">
-      <div className="text-xl md:text-2xl font-extrabold leading-tight text-center" style={{ color: '#fff', textShadow: '0 4px 12px rgba(0,0,0,0.8), 0 0 30px rgba(124,58,237,0.3)' }}>
-        {loading
-          ? "Loading question…"
-          : questionBank.length === 0
-            ? <span style={{ color: '#cbd5e1', fontWeight: 600 }}>No questions available.</span>
-            : (q?.prompt || "Loading…")}
-      </div>
-      <div style={{ marginTop: 8, textAlign: 'center' }}>
-        <small style={{ color: '#a5b4fc', fontSize: 13, textShadow: '0 2px 8px rgba(0,0,0,0.6)' }}>Click a country on the globe to answer</small>
-      </div>
-    </div>
-  </div>
-              
+              <div className="question-content">
+                <div className="question-card">
+                  <div className="text-xl md:text-2xl font-extrabold leading-tight text-center" style={{ color: '#fff', textShadow: '0 4px 12px rgba(0,0,0,0.8), 0 0 30px rgba(124,58,237,0.3)' }}>
+                    {loading
+                      ? "Loading question…"
+                      : questionBank.length === 0
+                        ? <span style={{ color: '#cbd5e1', fontWeight: 600 }}>No questions available.</span>
+                        : (q?.prompt || "Loading…")}
+                  </div>
+                  <div style={{ marginTop: 8, textAlign: 'center' }}>
+                    <small style={{ color: '#a5b4fc', fontSize: 13, textShadow: '0 2px 8px rgba(0,0,0,0.6)' }}>Click a country on the globe to answer</small>
+                  </div>
+                </div>
+              </div>
+
               {/* Right: Skip Button (always visible) */}
-  <div className="side-btn" style={{ minWidth: '140px' }}>
-    <button onClick={nextQuestion} className="arcade-btn arcade-btn-skip" style={{ width: '100%' }}>
-      ⏭ Skip
-    </button>
-  </div>
-</div>
+              <div className="side-btn" style={{ minWidth: '140px' }}>
+                <button onClick={nextQuestion} className="arcade-btn arcade-btn-skip" style={{ width: '100%' }}>
+                  ⏭ Skip
+                </button>
+              </div>
+            </div>
           )}
 
           {/* Summary Screen */}
@@ -570,25 +570,25 @@ export default function PlayGame() {
             <>
               {/* Arcade-style modal feedback */}
               {showCorrect && (
-  <div className="arcade-modal correct">
-    <span className="arcade-modal-icon">✓</span>
-    <p className="arcade-modal-text">Correct!</p>
-  </div>
-)}
-              
+                <div className="arcade-modal correct">
+                  <span className="arcade-modal-icon">✓</span>
+                  <p className="arcade-modal-text">Correct!</p>
+                </div>
+              )}
+
               {state === "wrong" && (
-  <div className="arcade-modal wrong">
-    <span className="arcade-modal-icon">✗</span>
-    <p className="arcade-modal-text">Try Again!</p>
-  </div>
-)}
-              
+                <div className="arcade-modal wrong">
+                  <span className="arcade-modal-icon">✗</span>
+                  <p className="arcade-modal-text">Try Again!</p>
+                </div>
+              )}
+
               {state === "locked" && (
-  <div className="arcade-modal locked">
-    <span className="arcade-modal-icon">💀</span>
-    <p className="arcade-modal-text">Game Over!</p>
-  </div>
-)}
+                <div className="arcade-modal locked">
+                  <span className="arcade-modal-icon">💀</span>
+                  <p className="arcade-modal-text">Game Over!</p>
+                </div>
+              )}
             </>
           )}
         </div>
