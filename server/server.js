@@ -109,65 +109,65 @@ app.get("/api/me", (req, res) => {
 /* ------------------------------
    PROTECTED ROUTES
 --------------------------------*/
-app.get("/api/questions", requireAuth, (req, res) => {
+app.get("/api/questions", (req, res) => {
   res.json(getQuestions());
 });
 
-app.post("/api/questions", requireAuth, (req, res) => {
+app.post("/api/questions", (req, res) => {
   const { text, answer } = req.body;
   const newQuestion = addQuestion({ text, answer });
   res.json(newQuestion);
 });
 
-app.put("/api/questions/:id", requireAuth, (req, res) => {
+app.put("/api/questions/:id", (req, res) => {
   const updated = updateQuestion(req.params.id, req.body.text, req.body.answer);
   res.json(updated);
 });
 
-app.delete("/api/questions/:id", requireAuth, (req, res) => {
+app.delete("/api/questions/:id", (req, res) => {
   deleteQuestion(req.params.id);
   res.json({ success: true });
 });
 
-app.delete("/api/questions", requireAuth, (req, res) => {
+app.delete("/api/questions", (req, res) => {
   deleteAllQuestions();
   res.json({ success: true });
 });
 
 /* SETTINGS */
-app.get("/api/settings", requireAuth, (req, res) => {
+app.get("/api/settings", (req, res) => {
   res.json(getSettings());
 });
 
-app.post("/api/settings", requireAuth, (req, res) => {
+app.post("/api/settings", (req, res) => {
   const { rounds, attempts } = req.body;
   setSettings(rounds, attempts);
   res.json({ success: true });
 });
 
 /* SPOTS */
-app.get('/api/spots', requireAuth, (req, res) => {
+app.get('/api/spots', (req, res) => {
   const spots = getSpotsByCountry(req.query.country);
   res.json(spots);
 });
 
-app.post('/api/spots', requireAuth, (req, res) => {
+app.post('/api/spots', (req, res) => {
   const spot = addSpot(req.body);
   res.json(spot);
 });
 
-app.put('/api/spots/:id', requireAuth, (req, res) => {
+app.put('/api/spots/:id', (req, res) => {
   const updated = updateSpot(req.params.id, req.body.name, req.body.description);
   res.json(updated);
 });
 
-app.delete('/api/spots/:id', requireAuth, (req, res) => {
+app.delete('/api/spots/:id', (req, res) => {
   deleteSpot(req.params.id);
   res.json({ success: true });
 });
 
 /* ADMIN ACCOUNT UPDATE */
-app.post("/api/admin", requireAuth, (req, res) => {
+app.post("/api/admin", (req, res) => {
   setAdmin(req.body.username, req.body.password);
   res.json({ success: true });
 });
