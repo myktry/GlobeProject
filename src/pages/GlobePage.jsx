@@ -9,8 +9,10 @@ export default function GlobePage() {
   const [countries, setCountries] = useState({ features: [] });
   const [selectedCountry, setSelectedCountry] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isHoveringCountry, setIsHoveringCountry] = useState(false); // New state
   const countryInfoRef = useRef(null);
 
+  // Fetch country data
   useEffect(() => {
     const fetchCountries = async () => {
       try {
@@ -77,64 +79,20 @@ export default function GlobePage() {
           }
 
           if (!countryData) {
-            // Special handling for territories
-            if (countryName.toLowerCase().includes("west bank")) {
-              countryData = {
-                name: { common: "Palestine", official: "State of Palestine" },
-                capital: ["Ramallah"],
-                population: 5000000,
-                area: 6220,
-                region: "Asia",
-                subregion: "Western Asia",
-                currencies: { ILS: { name: "Israeli Shekel", symbol: "₪" } },
-                languages: { ara: "Arabic", heb: "Hebrew" },
-                timezones: ["UTC+02:00"],
-                cca2: "PS",
-                cca3: "PSE",
-              };
-            } else if (countryName.toLowerCase().includes("antarctica")) {
-              countryData = {
-                name: { common: "Antarctica", official: "Antarctica" },
-                capital: ["No permanent capital"],
-                population: 0,
-                area: 14000000,
-                region: "Antarctica",
-                subregion: "Antarctica",
-                currencies: {},
-                languages: {},
-                timezones: ["UTC+00:00"],
-                cca2: "AQ",
-                cca3: "ATA",
-              };
-            } else if (countryName.toLowerCase().includes("united nations") || countryName.toLowerCase().includes("un country")) {
-              countryData = {
-                name: { common: "United Nations", official: "United Nations" },
-                capital: ["New York (Headquarters)"],
-                population: 0,
-                area: 0,
-                region: "International Organization",
-                subregion: "Global",
-                currencies: {},
-                languages: { eng: "English", fra: "French", spa: "Spanish", rus: "Russian", ara: "Arabic", zho: "Chinese" },
-                timezones: ["UTC-05:00"],
-                cca2: "UN",
-                cca3: "UNO",
-              };
-            } else {
-              countryData = {
-                name: { common: countryName, official: countryName },
-                capital: ["N/A"],
-                population: 0,
-                area: 0,
-                region: "N/A",
-                subregion: "N/A",
-                currencies: {},
-                languages: {},
-                timezones: [],
-                cca2: "XX",
-                cca3: "XXX",
-              };
-            }
+            // Special handling for territories and unknown countries
+            countryData = {
+              name: { common: countryName, official: countryName },
+              capital: ["N/A"],
+              population: 0,
+              area: 0,
+              region: "N/A",
+              subregion: "N/A",
+              currencies: {},
+              languages: {},
+              timezones: [],
+              cca2: "XX",
+              cca3: "XXX",
+            };
           }
 
           return {
@@ -154,16 +112,12 @@ export default function GlobePage() {
     fetchCountries();
   }, []);
 
-  const handleCountryClick = (countryData) => {
-    setSelectedCountry(countryData);
-  };
+  const handleCountryClick = (countryData) => setSelectedCountry(countryData);
+  const handleCloseCountryInfo = () => setSelectedCountry(null);
+  const handleGlobeBackgroundClick = () => selectedCountry && setSelectedCountry(null);
 
-  const handleCloseCountryInfo = () => {
-    setSelectedCountry(null);
-  };
-
-  const handleGlobeBackgroundClick = () => {
-    if (selectedCountry) setSelectedCountry(null);
+  const handleCountryHover = (hovering) => {
+    setIsHoveringCountry(hovering);
   };
 
   useEffect(() => {
@@ -181,21 +135,22 @@ export default function GlobePage() {
       className="relative flex h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800"
       onClick={(e) => e.target === e.currentTarget && selectedCountry && setSelectedCountry(null)}
     >
-      {/* Updated Back Button */}
+      {/* Back Button */}
       <div className="absolute z-[9999] top-0 left-0 flex items-center">
-  <Link
-    to="/"
-    aria-label="Back to Home"
-    className="inline-flex items-center gap-2"
-    style={{ marginLeft: "12px", marginTop: "8px" }}
-  >
-    <IconButton ariaLabel="Back to home" size={40} style={{ backdropFilter: 'blur(6px)' }}>
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-        <path d="M15 18l-6-6 6-6" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    </IconButton>
-  </Link>
-</div>
+        <Link
+          to="/"
+          aria-label="Back to Home"
+          className="inline-flex items-center gap-2"
+          style={{ marginLeft: "12px", marginTop: "8px" }}
+        >
+          <IconButton ariaLabel="Back to home" size={40} style={{ backdropFilter: 'blur(6px)' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+              <path d="M15 18l-6-6 6-6" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </IconButton>
+        </Link>
+      </div>
+
       {/* Globe Container */}
       <div
         className="flex-1 max-w-[calc(100vw-320px)] globe-container relative z-0"
@@ -207,6 +162,8 @@ export default function GlobePage() {
           selectedCountry={selectedCountry}
           loading={loading}
           onBackgroundClick={handleGlobeBackgroundClick}
+          isHoveringCountry={isHoveringCountry}       // Pass the hover state
+          onCountryHover={handleCountryHover}         // Pass hover callback
         />
       </div>
 

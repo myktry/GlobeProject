@@ -1,67 +1,77 @@
 import React, { useRef, useEffect, useState } from "react";
-import { ArrowLeft } from "lucide-react";
 import Globe from "react-globe.gl";
 
-const InteractiveGlobe = ({ onCountryClick, countries, selectedCountry, onBackgroundClick, disableHover = false, hoverHighlightOnly = false }) => {
+const InteractiveGlobe = ({
+  onCountryClick,
+  countries,
+  selectedCountry,
+  onBackgroundClick,
+  disableHover = false,
+  hoverHighlightOnly = false,
+  isHoveringCountry = false,
+  onCountryHover
+}) => {
   const globeRef = useRef();
   const [hoveredCountry, setHoveredCountry] = useState(null);
-  const [hoverLabel, setHoverLabel] = useState(null); // { name, x, y }
+  const [hoverLabel, setHoverLabel] = useState(null);
+  const targetSpeed = useRef(0.5); // default rotation speed
+  const currentSpeed = useRef(0.5);
 
-  // Function to match country names with better accuracy
+  // Match country names
   const isCountryMatch = (polygonName, countryName) => {
     if (!polygonName || !countryName) return false;
-    
     const polyLower = polygonName.toLowerCase().trim();
     const countryLower = countryName.toLowerCase().trim();
-    
-    // Direct match
-    if (polyLower === countryLower) {
-      return true;
-    }
-    
-    // Check if one contains the other (for partial matches)
-    if (polyLower.includes(countryLower) || countryLower.includes(polyLower)) {
-      return true;
-    }
-    
-    // Special cases for common mismatches
+    if (polyLower === countryLower) return true;
+    if (polyLower.includes(countryLower) || countryLower.includes(polyLower)) return true;
+
     const specialMatches = [
-      ['united states', 'usa', 'america', 'united states of america'],
-      ['united kingdom', 'uk', 'britain', 'england', 'great britain'],
-      ['south korea', 'korea', 'republic of korea'],
-      ['north korea', 'democratic people\'s republic of korea'],
-      ['czech republic', 'czechia'],
-      ['east timor', 'timor-leste'],
-      ['swaziland', 'eswatini'],
-      ['macedonia', 'north macedonia'],
-      ['myanmar', 'burma'],
-      ['congo', 'republic of the congo'],
-      ['democratic republic of the congo', 'dr congo', 'drc'],
-      ['ivory coast', 'côte d\'ivoire'],
-      ['cape verde', 'cabo verde']
+      ["united states", "usa", "america", "united states of america"],
+      ["united kingdom", "uk", "britain", "england", "great britain"],
+      ["south korea", "korea", "republic of korea"],
+      ["north korea", "democratic people's republic of korea"],
+      ["czech republic", "czechia"],
+      ["east timor", "timor-leste"],
+      ["swaziland", "eswatini"],
+      ["macedonia", "north macedonia"],
+      ["myanmar", "burma"],
+      ["congo", "republic of the congo"],
+      ["democratic republic of the congo", "dr congo", "drc"],
+      ["ivory coast", "côte d'ivoire"],
+      ["cape verde", "cabo verde"]
     ];
-    
-    for (const group of specialMatches) {
-      if (group.includes(polyLower) && group.includes(countryLower)) {
-        return true;
-      }
-    }
-    
-    return false;
+
+    return specialMatches.some(group => group.includes(polyLower) && group.includes(countryLower));
   };
 
+  // Initialize globe
   useEffect(() => {
     if (globeRef.current) {
-      // Auto-rotate the globe
       globeRef.current.controls().autoRotate = true;
-      globeRef.current.controls().autoRotateSpeed = 0.5;
-      
-      // Set initial camera position
+      globeRef.current.controls().autoRotateSpeed = currentSpeed.current;
       globeRef.current.pointOfView({ lat: 0, lng: 0, altitude: 2.5 });
     }
   }, []);
 
-  // Mouse move handler to update label position
+  // Smooth rotation speed adjustment
+  useEffect(() => {
+    targetSpeed.current = isHoveringCountry ? 0 : 0.5; // slow down to 0 on hover, resume to 0.5 after
+    let animationFrame;
+
+    const smoothStep = () => {
+      if (globeRef.current && globeRef.current.controls()) {
+        const speedDiff = targetSpeed.current - currentSpeed.current;
+        currentSpeed.current += speedDiff * 0.1; // 0.1 = smoothing factor
+        globeRef.current.controls().autoRotateSpeed = currentSpeed.current;
+        if (Math.abs(speedDiff) > 0.001) animationFrame = requestAnimationFrame(smoothStep);
+      }
+    };
+    animationFrame = requestAnimationFrame(smoothStep);
+
+    return () => cancelAnimationFrame(animationFrame);
+  }, [isHoveringCountry]);
+
+  // Mouse label tracking
   const handleMouseMove = (event) => {
     if (hoveredCountry) {
       const globeRect = globeRef.current?.parentElement?.getBoundingClientRect();
@@ -75,96 +85,68 @@ const InteractiveGlobe = ({ onCountryClick, countries, selectedCountry, onBackgr
 
   useEffect(() => {
     if (hoveredCountry) {
-      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener("mousemove", handleMouseMove);
     } else {
       setHoverLabel(null);
     }
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-    };
+    return () => window.removeEventListener("mousemove", handleMouseMove);
   }, [hoveredCountry]);
 
-
   return (
-    <div style={{position: 'relative', width: '100vw', height: '100vh'}}>
+    <div style={{ position: "relative", width: "100vw", height: "100vh" }}>
       <Globe
         ref={globeRef}
         globeImageUrl="//unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
         backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
         polygonsData={countries.features}
         polygonAltitude={(d) => {
-          if (selectedCountry && isCountryMatch(d.properties?.name, selectedCountry.name.common)) {
-            return 0.2;
-          }
-          if (!disableHover && hoveredCountry && isCountryMatch(d.properties?.name, hoveredCountry)) {
-            return 0.05;
-          }
+          if (selectedCountry && isCountryMatch(d.properties?.name, selectedCountry.name.common)) return 0.2;
+          if (!disableHover && hoveredCountry && isCountryMatch(d.properties?.name, hoveredCountry)) return 0.05;
           return 0.01;
         }}
         polygonCapColor={(d) => {
-          if (selectedCountry && isCountryMatch(d.properties?.name, selectedCountry.name.common)) {
-            return "rgba(255, 215, 0, 1.0)";
-          }
-          if (!disableHover && hoveredCountry && isCountryMatch(d.properties?.name, hoveredCountry)) {
-            return "rgba(255, 165, 0, 0.8)";
-          }
+          if (selectedCountry && isCountryMatch(d.properties?.name, selectedCountry.name.common)) return "rgba(255, 215, 0, 1.0)";
+          if (!disableHover && hoveredCountry && isCountryMatch(d.properties?.name, hoveredCountry)) return "rgba(255, 165, 0, 0.8)";
           return "rgba(0, 150, 255, 0.3)";
         }}
         polygonSideColor={(d) => {
-          if (selectedCountry && isCountryMatch(d.properties?.name, selectedCountry.name.common)) {
-            return "rgba(255, 215, 0, 0.7)";
-          }
-          if (!disableHover && hoveredCountry && isCountryMatch(d.properties?.name, hoveredCountry)) {
-            return "rgba(255, 165, 0, 0.5)";
-          }
+          if (selectedCountry && isCountryMatch(d.properties?.name, selectedCountry.name.common)) return "rgba(255, 215, 0, 0.7)";
+          if (!disableHover && hoveredCountry && isCountryMatch(d.properties?.name, hoveredCountry)) return "rgba(255, 165, 0, 0.5)";
           return "rgba(0, 150, 255, 0.2)";
         }}
         polygonStrokeColor={(d) => {
-          if (selectedCountry && isCountryMatch(d.properties?.name, selectedCountry.name.common)) {
-            return "rgba(255, 215, 0, 1)";
-          }
-          if (!disableHover && hoveredCountry && isCountryMatch(d.properties?.name, hoveredCountry)) {
-            return "rgba(255, 165, 0, 1)";
-          }
+          if (selectedCountry && isCountryMatch(d.properties?.name, selectedCountry.name.common)) return "rgba(255, 215, 0, 1)";
+          if (!disableHover && hoveredCountry && isCountryMatch(d.properties?.name, hoveredCountry)) return "rgba(255, 165, 0, 1)";
           return "rgba(255, 255, 255, 1)";
         }}
         polygonStrokeWidth={(d) => {
-          if (selectedCountry && isCountryMatch(d.properties?.name, selectedCountry.name.common)) {
-            return 8;
-          }
-          if (!disableHover && hoveredCountry && isCountryMatch(d.properties?.name, hoveredCountry)) {
-            return 5;
-          }
+          if (selectedCountry && isCountryMatch(d.properties?.name, selectedCountry.name.common)) return 8;
+          if (!disableHover && hoveredCountry && isCountryMatch(d.properties?.name, hoveredCountry)) return 5;
           return 2;
         }}
         polygonStrokeAltitude={(d) => {
-          if (selectedCountry && isCountryMatch(d.properties?.name, selectedCountry.name.common)) {
-            return 0.15;
-          }
-          if (!disableHover && hoveredCountry && isCountryMatch(d.properties?.name, hoveredCountry)) {
-            return 0.08;
-          }
+          if (selectedCountry && isCountryMatch(d.properties?.name, selectedCountry.name.common)) return 0.15;
+          if (!disableHover && hoveredCountry && isCountryMatch(d.properties?.name, hoveredCountry)) return 0.08;
           return 0.005;
         }}
         onPolygonClick={(polygon) => {
-          // When a country is clicked, clear hover state
           setHoveredCountry(null);
-          if (polygon?.properties?.countryData) {
-            onCountryClick(polygon.properties.countryData);
-          }
+          onCountryHover?.(false);
+          if (polygon?.properties?.countryData) onCountryClick(polygon.properties.countryData);
         }}
-        onPolygonHover={!disableHover ? (polygon) => {
-          if (polygon?.properties?.countryData?.name?.common) {
-            setHoveredCountry(polygon.properties.countryData.name.common);
-          } else if (polygon?.properties?.name) {
-            setHoveredCountry(polygon.properties.name);
-          } else {
-            setHoveredCountry(null);
-          }
-        } : undefined}
-        onGlobeReady={() => {
-          // Globe is ready
-        }}
+        onPolygonHover={!disableHover
+          ? (polygon) => {
+              if (polygon) {
+                const name = polygon?.properties?.countryData?.name?.common || polygon?.properties?.name || null;
+                setHoveredCountry(name);
+                onCountryHover?.(true);
+              } else {
+                setHoveredCountry(null);
+                onCountryHover?.(false);
+              }
+            }
+          : undefined
+        }
         polygonsTransitionDuration={300}
         width={window.innerWidth}
         height={window.innerHeight}
@@ -173,30 +155,29 @@ const InteractiveGlobe = ({ onCountryClick, countries, selectedCountry, onBackgr
         showPolygonStroke={true}
         showPolygonCap={true}
       />
-      
-      {/* Floating country label */}
+
       {!disableHover && !hoverHighlightOnly && hoverLabel && (
         <div
           style={{
-            position: 'absolute',
+            position: "absolute",
             left: hoverLabel.x + 12,
             top: hoverLabel.y - 18,
-            pointerEvents: 'none',
-            background: 'linear-gradient(90deg, #0033FF 0%, #0600AB 60%, #00003D 100%)',
-            color: '#fff',
-            padding: '7px 18px',
+            pointerEvents: "none",
+            background: "linear-gradient(90deg, #0033FF 0%, #0600AB 60%, #00003D 100%)",
+            color: "#fff",
+            padding: "7px 18px",
             borderRadius: 10,
             fontFamily: "'Quicksand', 'Inter', 'Segoe UI', Arial, sans-serif",
             fontWeight: 700,
             fontSize: 17,
-            boxShadow: '0 0 16px 2px #0033FF99, 0 2px 16px 0 #00003D88',
+            boxShadow: "0 0 16px 2px #0033FF99, 0 2px 16px 0 #00003D88",
             zIndex: 30,
-            whiteSpace: 'nowrap',
-            border: '2px solid #0033FF',
-            textShadow: '0 0 8px #0033FFcc, 0 1px 8px #00003Dcc',
-            transition: 'opacity 0.18s',
+            whiteSpace: "nowrap",
+            border: "2px solid #0033FF",
+            textShadow: "0 0 8px #0033FFcc, 0 1px 8px #00003Dcc",
+            transition: "opacity 0.18s",
             opacity: 1,
-            filter: 'drop-shadow(0 0 8px #0033FF88)',
+            filter: "drop-shadow(0 0 8px #0033FF88)",
           }}
         >
           {hoverLabel.name}
@@ -207,4 +188,3 @@ const InteractiveGlobe = ({ onCountryClick, countries, selectedCountry, onBackgr
 };
 
 export default InteractiveGlobe;
-
