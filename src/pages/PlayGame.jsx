@@ -1,9 +1,8 @@
 // src/pages/PlayGame.jsx
 import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import InteractiveGlobe from "../components/InteractiveGlobe"; // <-- your globe
+import InteractiveGlobe from "../components/InteractiveGlobe";
 import Button, { IconButton } from "../components/UIButton";
-// We won't use CountryInfo here; game only needs clicks
 
 export default function PlayGame() {
   // ==== reuse your GlobePage data shape ====
@@ -17,11 +16,11 @@ export default function PlayGame() {
   const totalRounds = Math.min(settings.rounds, Array.isArray(questionBank) ? questionBank.length : 0);
 
   // ==== game state ====
-  const [q, setQ] = useState(null);      // current question
-  const [round, setRound] = useState(1); // 1..TOTAL_ROUNDS
+  const [q, setQ] = useState(null);
+  const [round, setRound] = useState(1);
   const [attempts, setAttempts] = useState(0);
   const [score, setScore] = useState(0);
-  const [state, setState] = useState("loading"); // loading | asking | wrong | correct | locked | summary
+  const [state, setState] = useState("loading");
   const [showCorrect, setShowCorrect] = useState(false);
   const lastQuestionIndexRef = useRef(-1);
 
@@ -31,10 +30,10 @@ export default function PlayGame() {
     const base = name
       .toString()
       .normalize('NFKD')
-      .replace(/[\u0300-\u036f]/g, '') // strip accents
+      .replace(/[\u0300-\u036f]/g, '')
       .toLowerCase()
-      .replace(/[^a-z\s]/g, ' ') // remove punctuation/symbols
-      .replace(/\s+/g, ' ') // collapse spaces
+      .replace(/[^a-z\s]/g, ' ')
+      .replace(/\s+/g, ' ')
       .trim();
     const aliases = {
       'united states of america': 'united states',
@@ -47,7 +46,7 @@ export default function PlayGame() {
       'u k': 'united kingdom',
       'england': 'united kingdom',
       'ivory coast': 'cote d ivoire',
-      'cote d’ivoire': 'cote d ivoire',
+      'cote d\'ivoire': 'cote d ivoire',
       'cote d ivoire': 'cote d ivoire',
       'swaziland': 'eswatini',
       'east timor': 'timor leste',
@@ -64,7 +63,7 @@ export default function PlayGame() {
       setShowCorrect(true);
       const timer = setTimeout(() => {
         setShowCorrect(false);
-        nextQuestion(); // Automatically proceed to next question
+        nextQuestion();
       }, 2000);
       return () => clearTimeout(timer);
     }
@@ -74,7 +73,6 @@ export default function PlayGame() {
   useEffect(() => {
     if (state === "locked") {
       const t = setTimeout(() => {
-        // Show a short "game over" then automatically restart
         startGame();
       }, 2000);
       return () => clearTimeout(t);
@@ -100,7 +98,6 @@ export default function PlayGame() {
     console.log("Loaded questionBank:", questionBank);
     console.log("Current question:", q);
   }, [questionBank, q]);
-
 
   // ---- data fetch (globe + settings + questions) ----
   async function fetchAll() {
@@ -148,9 +145,7 @@ export default function PlayGame() {
           f.properties?.name ||
           f.properties?.ADMIN ||
           "Unknown Country";
-        const found =
-          map.get(name.toLowerCase()) ||
-          null;
+        const found = map.get(name.toLowerCase()) || null;
         return {
           ...f,
           properties: {
@@ -175,7 +170,6 @@ export default function PlayGame() {
     } finally {
       setLoading(false);
     }
-
   }
 
   // ✅ run only once on mount
@@ -191,7 +185,6 @@ export default function PlayGame() {
     }
   }, [loading, questionBank]);
 
-
   // ---- game control ----
   function randomQuestion() {
     if (!Array.isArray(questionBank) || questionBank.length === 0) return null;
@@ -206,6 +199,7 @@ export default function PlayGame() {
     lastQuestionIndexRef.current = idx;
     return questionBank[idx];
   }
+
   function startGame() {
     setScore(0);
     setRound(1);
@@ -218,6 +212,7 @@ export default function PlayGame() {
       setState("asking");
     }
   }
+
   function nextQuestion() {
     if (round >= totalRounds) {
       setState("summary");
@@ -228,14 +223,11 @@ export default function PlayGame() {
     setQ(randomQuestion());
     setState("asking");
   }
-  
 
-  // Called by your InteractiveGlobe; it sends a country object
+  // Called by your InteractiveGlobe
   const onCountryClick = (countryData) => {
     if (state === "locked" || state === "summary" || !q) return;
 
-    // Support both shapes: either a plain countryData (your GlobePage),
-    // or a GeoJSON feature if InteractiveGlobe passes that.
     const clickedName =
       countryData?.name?.common ||
       countryData?.properties?.name ||
@@ -261,42 +253,201 @@ export default function PlayGame() {
   return (
     <>
       <style>{`
-        @keyframes popInGreen {
-          0% { transform: scale(0.6) translateY(8px); opacity: 0 }
-          70% { transform: scale(1.06) translateY(-6px); opacity: 1 }
-          100% { transform: scale(1) translateY(0); opacity: 1 }
+        @keyframes popInModal {
+          0% { transform: scale(0.5) translateY(-50px); opacity: 0; }
+          60% { transform: scale(1.1); opacity: 1; }
+          100% { transform: scale(1) translateY(0); opacity: 1; }
         }
-        @keyframes popInRed {
-          0% { transform: scale(0.9) translateY(0); opacity: 0 }
-          50% { transform: scale(1.04) translateY(-4px); opacity: 1 }
-          100% { transform: scale(1) translateY(0); opacity: 1 }
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          25% { transform: translateX(-10px); }
+          75% { transform: translateX(10px); }
         }
-        .pill-pop-green { animation: popInGreen 320ms cubic-bezier(.2,.9,.2,1) both; }
-        .pill-pop-red { animation: popInRed 260ms cubic-bezier(.2,.9,.2,1) both; }
+        @keyframes bounce {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-15px); }
+        }
+        
+        .arcade-modal {
+          animation: popInModal 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+          position: fixed;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          z-index: 9999;
+          padding: 30px 50px;
+          border-radius: 20px;
+          font-family: 'Arial Black', sans-serif;
+          text-align: center;
+          box-shadow: 
+            0 0 0 4px rgba(0,0,0,0.8),
+            0 0 0 8px currentColor,
+            0 20px 50px rgba(0,0,0,0.5),
+            inset 0 2px 0 rgba(255,255,255,0.3);
+        }
+        
+        .arcade-modal.correct {
+          background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+          color: #fff;
+          border: 4px solid #064e3b;
+        }
+        
+        .arcade-modal.wrong {
+          background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+          color: #fff;
+          border: 4px solid #7f1d1d;
+          animation: popInModal 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55), shake 0.5s ease-in-out 0.3s;
+        }
+        
+        .arcade-modal.locked {
+          background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+          color: #fff;
+          border: 4px solid #312e81;
+        }
+        
+        .arcade-modal-text {
+          font-size: 32px;
+          font-weight: 900;
+          text-transform: uppercase;
+          letter-spacing: 2px;
+          text-shadow: 3px 3px 0 rgba(0,0,0,0.4);
+          margin: 0;
+        }
+        
+        .arcade-modal-icon {
+          font-size: 48px;
+          margin-bottom: 10px;
+          display: block;
+          animation: bounce 0.6s ease-in-out 0.2s;
+        }
 
-  /* Revert question card to previous wider layout */
-  .question-card { max-width: 1100px !important; padding: 22px 34px !important; border-radius: 16px !important; }
-  .bottom-restart-wrap { /* centered by parent flex; no manual offset */ }
-        /* smaller width, taller button */
-        .bottom-restart-btn { width: 280px; display: inline-flex; justify-content: center; padding: 18px 20px !important; font-size: 18px !important; }
-        .bottom-restart-btn.pulse { animation: pulse 2200ms ease-in-out infinite; }
-
-        @keyframes pulse {
-          0% { transform: translateY(0); }
-          50% { transform: translateY(-4px); }
-          100% { transform: translateY(0); }
+        /* Question card with visible background */
+        .question-card { 
+          max-width: 100% !important; 
+          padding: 16px 28px !important; 
+          border-radius: 16px !important;
+          background: linear-gradient(135deg, rgba(30, 27, 75, 0.95) 0%, rgba(15, 13, 50, 0.92) 100%) !important;
+          border: 4px solid rgba(124, 58, 237, 0.4) !important;
+          box-shadow: 
+            0 0 0 2px rgba(0,0,0,0.8),
+            0 20px 60px rgba(0,0,0,0.6),
+            inset 0 2px 0 rgba(255,255,255,0.1) !important;
+          backdrop-filter: blur(10px) !important;
+        }
+        
+        .question-section {
+          position: fixed;
+          bottom: 30px;
+          left: 50%;
+          transform: translateX(-50%);
+          width: calc(100% - 40px);
+          max-width: 1200px;
+          z-index: 100;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 20px;
+        }
+        
+        .question-content {
+          flex: 0 1 auto;
+          max-width: 700px;
+        }
+        
+        /* Arcade-style buttons */
+        .arcade-btn {
+          position: relative;
+          padding: 16px 32px;
+          font-size: 18px;
+          font-weight: 900;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          border-radius: 12px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          font-family: 'Arial Black', sans-serif;
+          box-shadow: 
+            0 0 0 3px rgba(0,0,0,0.8),
+            0 0 0 6px currentColor,
+            0 8px 0 rgba(0,0,0,0.4),
+            0 12px 20px rgba(0,0,0,0.3);
+        }
+        
+        .arcade-btn:hover {
+          transform: translateY(-2px);
+          box-shadow: 
+            0 0 0 3px rgba(0,0,0,0.8),
+            0 0 0 6px currentColor,
+            0 10px 0 rgba(0,0,0,0.4),
+            0 14px 25px rgba(0,0,0,0.4);
+        }
+        
+        .arcade-btn:active {
+          transform: translateY(4px);
+          box-shadow: 
+            0 0 0 3px rgba(0,0,0,0.8),
+            0 0 0 6px currentColor,
+            0 4px 0 rgba(0,0,0,0.4),
+            0 8px 15px rgba(0,0,0,0.3);
+        }
+        
+        .arcade-btn-restart {
+          background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%);
+          color: #fff;
+          border: none;
+        }
+        
+        .arcade-btn-restart:hover {
+          background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+        }
+        
+        .arcade-btn-next {
+          background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+          color: #fff;
+          border: none;
+        }
+        
+        .arcade-btn-next:hover {
+          background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+        }
+        
+        .arcade-btn-skip {
+          background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+          color: #fff;
+          border: none;
+        }
+        
+        .arcade-btn-skip:hover {
+          background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+        }
+        
+        .side-btn {
+          flex-shrink: 0;
+          padding: 14px 20px !important;
+          min-width: 140px;
         }
 
         @media (max-width: 900px) {
-          .question-card { max-width: 760px !important; padding: 18px 22px !important; }
-          .bottom-restart-btn { width: 260px; }
+          .question-card { padding: 14px 24px !important; }
+          .question-section { bottom: 20px; width: calc(100% - 20px); gap: 14px; }
+          .side-btn { min-width: 120px; padding: 12px 16px !important; font-size: 16px; }
+          .arcade-modal { padding: 25px 40px; }
+          .arcade-modal-text { font-size: 26px; }
         }
         @media (max-width: 640px) {
-          .question-card { max-width: 92vw !important; padding: 12px 14px !important; }
-          .pill-pop-green, .pill-pop-red { transform-origin: center bottom; }
-          .bottom-restart-btn { width: 86vw !important; font-size: 16px !important; padding: 16px 14px !important; }
+          .question-card { padding: 12px 20px !important; }
+          .question-section { 
+            flex-direction: column; 
+            bottom: 15px; 
+            gap: 10px;
+          }
+          .side-btn { min-width: 100%; padding: 12px 20px !important; font-size: 15px; }
+          .arcade-modal { padding: 20px 30px; }
+          .arcade-modal-text { font-size: 22px; }
+          .arcade-modal-icon { font-size: 36px; }
         }
       `}</style>
+      
       <div className="min-h-screen text-white relative"
         style={{
           background:
@@ -331,7 +482,7 @@ export default function PlayGame() {
             <h2 className="text-3xl font-extrabold bg-gradient-to-r from-white via-purple-200 to-white bg-clip-text text-transparent tracking-wider">
               GEOGRAPHY QUIZ
             </h2>
-            {/* help removed per design — keep header minimal */}
+            <div style={{ width: '40px' }}></div>
           </div>
 
           {/* Game Stats Section */}
@@ -354,28 +505,23 @@ export default function PlayGame() {
             </div>
           )}
 
-          {/* Large Spacer - Forces space between stats and question */}
+          {/* Large Spacer */}
           {state !== "summary" && (
-            <div style={{ height: '20px' }}></div>
+            <div style={{ height: '60px' }}></div>
           )}
 
-          {/* Question Section */}
+          {/* Question Section - Fixed at bottom */}
           {state !== "summary" && (
-            <div className="px-6 py-8 bg-gradient-to-r from-black/30 via-black/20 to-black/30 backdrop-blur-md">
-              <div className="text-center">
-                <div
-                  className="question-card"
-                  style={{
-                    display: 'inline-block',
-                    maxWidth: 1100,
-                    padding: '22px 34px',
-                    borderRadius: 16,
-                    background: 'linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01))',
-                    border: '1px solid rgba(124,58,237,0.10)',
-                    boxShadow: '0 14px 40px rgba(2,6,23,0.66), inset 0 1px 0 rgba(255,255,255,0.02)',
-                  }}
-                >
-                  <div className="text-3xl md:text-4xl font-extrabold leading-tight" style={{ color: '#fff', textShadow: '0 6px 28px rgba(124,58,237,0.08), 0 2px 8px rgba(0,0,0,0.6)' }}>
+            <div className="question-section">
+              {/* Left: Restart Button */}
+              <button onClick={startGame} className="arcade-btn arcade-btn-restart side-btn">
+                🔄 Restart
+              </button>
+              
+              {/* Center: Question */}
+              <div className="question-content">
+                <div className="question-card">
+                  <div className="text-xl md:text-2xl font-extrabold leading-tight text-center" style={{ color: '#fff', textShadow: '0 4px 12px rgba(0,0,0,0.8), 0 0 30px rgba(124,58,237,0.3)' }}>
                     {loading
                       ? "Loading question…"
                       : questionBank.length === 0
@@ -386,34 +532,24 @@ export default function PlayGame() {
                         )
                         : (q?.prompt || "Loading…")}
                   </div>
-                  <div style={{ marginTop: 10 }}>
-                    <small style={{ color: '#9ca3af', fontSize: 14 }}>Tap a country on the globe to answer</small>
+                  <div style={{ marginTop: 8, textAlign: 'center' }}>
+                    <small style={{ color: '#a5b4fc', fontSize: 13, textShadow: '0 2px 8px rgba(0,0,0,0.6)' }}>Click a country on the globe to answer</small>
                   </div>
                 </div>
-                {/* Correct feedback that disappears after 3 seconds */}
-                {showCorrect && (
-                  <div className="mt-4" style={{ display: 'flex', justifyContent: 'center' }}>
-                    <div
-                      className="pill-pop-green inline-flex items-center gap-3 px-8 py-4 rounded-full font-extrabold"
-                      style={{
-                        background: 'linear-gradient(90deg,#34d399,#10b981)',
-                        color: '#04282b',
-                        boxShadow: '0 26px 80px rgba(16,185,129,0.32), inset 0 1px 0 rgba(255,255,255,0.08)',
-                        borderRadius: 999
-                      }}
-                    >
-                      <svg width="50" height="30" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-                        <circle cx="12" cy="12" r="10" fill="#fff" fillOpacity="0.95" />
-                        <path d="M7 13l2.5 2.5L17 8" stroke="#059669" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                      <span style={{ fontSize: 18, color: '#04282b' }}>Correct!</span>
-                    </div>
-                  </div>
+              </div>
+              
+              {/* Right: Skip Button (always maintain space) */}
+              <div className="side-btn" style={{ minWidth: '140px' }}>
+                {state === "asking" && (
+                  <button onClick={nextQuestion} className="arcade-btn arcade-btn-skip" style={{ width: '100%' }}>
+                    ⏭ Skip
+                  </button>
                 )}
               </div>
             </div>
           )}
 
+          {/* Summary Screen */}
           {state === "summary" ? (
             <div className="grid place-items-center mt-10 text-center">
               <div className="max-w-md p-6 rounded-2xl bg-white/10">
@@ -422,39 +558,10 @@ export default function PlayGame() {
                 <div className="text-4xl font-extrabold my-2">
                   {score}/{totalRounds}
                 </div>
-                {/* Play Again Button - Below Final Score */}
                 <button
                   onClick={startGame}
-                  style={{
-                    padding: "14px 28px",
-                    borderRadius: 16,
-                    fontWeight: 800,
-                    fontSize: 18,
-                    letterSpacing: 0.5,
-                    textDecoration: "none",
-                    display: "inline-block",
-                    margin: 8,
-                    cursor: "pointer",
-                    background: "#7c3aed",
-                    color: "#fff",
-                    border: "2.5px solid #4c1d95",
-                    boxShadow: "0 0 8px 2px #7c3aed, 0 0 16px 4px #7c3aed99, 0 0 2px #fff",
-                    outline: "none",
-                    transition: "background 0.3s cubic-bezier(.4,0,.2,1), color 0.3s cubic-bezier(.4,0,.2,1), border-color 0.3s cubic-bezier(.4,0,.2,1), box-shadow 0.4s cubic-bezier(.4,0,.2,1), transform .18s cubic-bezier(.4,0,.2,1)",
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.background = "#a78bfa";
-                    e.currentTarget.style.border = "2.5px solid #5b21b6";
-                    e.currentTarget.style.boxShadow = "0 0 16px 4px #a78bfa, 0 0 32px 8px #a78bfaBB, 0 0 8px 2px #fff";
-                    e.currentTarget.style.transform = "scale(1.07)";
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.background = "#7c3aed";
-                    e.currentTarget.style.border = "2.5px solid #4c1d95";
-                    e.currentTarget.style.boxShadow = "0 0 8px 2px #7c3aed, 0 0 16px 4px #7c3aed99, 0 0 2px #fff";
-                    e.currentTarget.style.transform = "scale(1)";
-                  }}
-                  tabIndex={0}
+                  className="arcade-btn arcade-btn-restart"
+                  style={{ marginTop: '20px' }}
                 >
                   Play Again
                 </button>
@@ -462,74 +569,34 @@ export default function PlayGame() {
             </div>
           ) : null}
 
-
+          {/* Arcade Modal Feedback and Action Buttons */}
           {state !== "summary" && (
             <>
-
-              <div className="max-w-4xl mx-auto px-6 mt-4 flex justify-center">
-                {state === "wrong" && (
-                  <div className="pill-pop-red inline-flex items-center gap-3 px-8 py-4 rounded-full font-extrabold" style={{
-                    background: 'linear-gradient(90deg,#f87171,#ef4444)',
-                    color: '#fff',
-                    boxShadow: '0 26px 80px rgba(239,68,68,0.22), inset 0 1px 0 rgba(255,255,255,0.06)',
-                    borderRadius: 999
-                  }}>
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-                      <circle cx="12" cy="12" r="10" fill="#fff" fillOpacity="0.95" />
-                      <path d="M15 9l-6 6M9 9l6 6" stroke="#dc2626" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                    <span style={{ fontSize: 16, color: '#fff' }}>Incorrect. Try again!</span>
-                  </div>
-                )}
-                {state === "locked" && (
-                  <Pill className="bg-red-600/80">❌ Out of attempts. Game Over</Pill>
-                )}
-              </div>
-
-              {/* Action Buttons (centered, consistent) */}
-              <div className="flex justify-center gap-6 px-6 py-4">
-                {state === "locked" && (
-                  <Button onClick={startGame} variant="danger" size="md">Restart Now</Button>
-                )}
-              </div>
+              {/* Arcade-style modal feedback */}
+              {showCorrect && (
+                <div className="arcade-modal correct">
+                  <span className="arcade-modal-icon">✓</span>
+                  <p className="arcade-modal-text">Correct!</p>
+                </div>
+              )}
+              
+              {state === "wrong" && (
+                <div className="arcade-modal wrong">
+                  <span className="arcade-modal-icon">✗</span>
+                  <p className="arcade-modal-text">Try Again!</p>
+                </div>
+              )}
+              
+              {state === "locked" && (
+                <div className="arcade-modal locked">
+                  <span className="arcade-modal-icon">💀</span>
+                  <p className="arcade-modal-text">Game Over!</p>
+                </div>
+              )}
             </>
           )}
         </div>
       </div>
-
-  {/* Fixed bottom restart button (visible during gameplay) */}
-  <BottomRestart onRestart={startGame} visible={state !== 'summary'} />
-
     </>
-  );
-}
-
-// render BottomRestart inside default export area by exposing it
-
-  // Fixed bottom restart control (visible during gameplay)
-  function BottomRestart({ onRestart, visible }) {
-    if (!visible) return null;
-    return (
-      <div style={{ position: 'fixed', left: 0, right: 0, bottom: 22, zIndex: 2200, display: 'flex', justifyContent: 'center', pointerEvents: 'none' }}>
-            <div className="bottom-restart-wrap" style={{ display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'center', pointerEvents: 'auto' }}>
-            <Button className="bottom-restart-btn pulse" onClick={() => { setTimeout(() => onRestart(), 60); }} 
-            variant="primary" size="lg" style={{ boxShadow: '0 28px 84px rgba(124,58,237,0.28)', borderRadius: 999, background: 'linear-gradient(90deg,#7c3aed,#5b21b6)', color: '#fff', letterSpacing: 0.6, border: '2px solid rgba(76,29,149,0.9)' }}>
-              <span style={{ display: 'inline-block', lineHeight: 1, fontWeight: 800, letterSpacing: 0.4 }}>Restart</span>
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-function Badge({ children }) {
-  return (
-    <div className="px-3 py-2 rounded-lg bg-white/10 shadow-sm">
-      {children}
-    </div>
-  );
-}
-function Pill({ children, className = "" }) {
-  return (
-    <span className={`px-3 py-2 rounded-lg inline-flex items-center gap-2 font-semibold ${className}`} style={{ boxShadow: '0 6px 18px rgba(2,6,23,0.6)' }}>{children}</span>
   );
 }

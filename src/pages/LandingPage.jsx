@@ -35,7 +35,7 @@ const LandingPage = () => (
         right: 8,
         width: 40,
         height: 40,
-        opacity: 0,
+        opacity: 100,
         zIndex: 50,
         borderRadius: 8,
         outline: "none",
