@@ -739,18 +739,26 @@ const Admin = () => {
                               </div>
                               <div style={{ display: 'flex', gap: 8 }}>
                                 <button className="admin-btn btn-primary btn-sm" onClick={() => { setEditingSpotId(s.id); setEditingSpot({ name: s.name, description: s.description }); }}>Edit</button>
-                                <button className="admin-btn btn-danger btn-sm" onClick={async () => {
-                                  if (!confirm('Delete this spot?')) return;
-                                  try {
-                                    const res = await fetch(`${API_BASE}/api/spots/${s.id}`, { method: 'DELETE', credentials: 'include' });
-                                    if (!res.ok) throw new Error('Failed to delete');
-                                    setTouristSpots(prev => prev.filter(p => p.id !== s.id));
-                                    setToast('Spot deleted');
-                                  } catch (err) {
-                                    setResultModalType('error'); setResultModalMessage(err.message || 'Failed to delete spot'); setResultModalVisible(true);
-                                  }
-                                }}>Delete</button>
-                              </div>
+                                <button className="admin-btn btn-danger btn-sm" onClick={() => {
+                              // Show in-app confirmation modal
+                              setConfirmMessage(`Delete spot "${s.name}"? This cannot be undone.`);
+                              confirmActionRef.current = async () => {
+                                try {
+                                  const res = await fetch(`${API_BASE}/api/spots/${s.id}`, { method: 'DELETE', credentials: 'include' });
+                                  if (!res.ok) throw new Error('Failed to delete spot');
+                                  setTouristSpots(prev => prev.filter(p => p.id !== s.id));
+                                  setToast('Spot deleted');
+                                } catch (err) {
+                                  setResultModalType('error');
+                                  setResultModalMessage(err.message || 'Failed to delete spot');
+                                  setResultModalVisible(true);
+                                } finally {
+                                  setConfirmVisible(false);
+                                }
+                              };
+                              setConfirmVisible(true);
+                            }}>Delete</button>
+                                                          </div>
                             </div>
                           )}
                         </li>
@@ -1086,36 +1094,36 @@ const Admin = () => {
                       {pageQuestions.length === 0 && <li style={{ color: '#94a3b8' }}>No questions available</li>}
                     </ul>
 
-                    {/* Pagination controls */}
-                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, marginTop: 12 }}>
-                      <button className="admin-btn btn-neutral btn-sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>Prev</button>
-                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                        {(() => {
-                          const pages = [];
-                          const range = 2; // show current ± range
-                          const total = totalPages;
-                          const startP = Math.max(1, currentPage - range);
-                          const endP = Math.min(total, currentPage + range);
-                          if (startP > 1) {
-                            pages.push(1);
-                            if (startP > 2) pages.push('...');
-                          }
-                          for (let i = startP; i <= endP; i++) pages.push(i);
-                          if (endP < total) {
-                            if (endP < total - 1) pages.push('...');
-                            pages.push(total);
-                          }
-                          return pages.map((p, idx) => (
-                            typeof p === 'number' ? (
-                              <button key={p} className={`admin-btn ${p === currentPage ? 'btn-primary' : 'btn-neutral'} btn-sm`} onClick={() => setCurrentPage(p)}>{p}</button>
-                            ) : (
-                              <span key={'dots-' + idx} style={{ color: '#94a3b8', padding: '6px 8px' }}>{p}</span>
-                            )
-                          ));
-                        })()}
-                      </div>
-                      <button className="admin-btn btn-neutral btn-sm" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>Next</button>
-                    </div>
+{/* Pagination controls */}
+<div
+  style={{
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 12,
+  }}
+>
+  <button
+    className="admin-btn btn-neutral btn-sm"
+    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+    disabled={currentPage === 1}
+  >
+    Previous
+  </button>
+
+  <span style={{ color: '#cbd5e1', fontWeight: 600 }}>
+    Page {currentPage} / {totalPages}
+  </span>
+
+  <button
+    className="admin-btn btn-neutral btn-sm"
+    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+    disabled={currentPage === totalPages}
+  >
+    Next
+  </button>
+</div>
                   </>
                 );
               })()}

@@ -521,34 +521,28 @@ export default function PlayGame() {
               </button>
               
               {/* Center: Question */}
-              <div className="question-content">
-                <div className="question-card">
-                  <div className="text-xl md:text-2xl font-extrabold leading-tight text-center" style={{ color: '#fff', textShadow: '0 4px 12px rgba(0,0,0,0.8), 0 0 30px rgba(124,58,237,0.3)' }}>
-                    {loading
-                      ? "Loading question…"
-                      : questionBank.length === 0
-                        ? (
-                          <span style={{ color: '#cbd5e1', fontWeight: 600 }}>
-                            No questions available at the moment.
-                          </span>
-                        )
-                        : (q?.prompt || "Loading…")}
-                  </div>
-                  <div style={{ marginTop: 8, textAlign: 'center' }}>
-                    <small style={{ color: '#a5b4fc', fontSize: 13, textShadow: '0 2px 8px rgba(0,0,0,0.6)' }}>Click a country on the globe to answer</small>
-                  </div>
-                </div>
-              </div>
+  <div className="question-content">
+    <div className="question-card">
+      <div className="text-xl md:text-2xl font-extrabold leading-tight text-center" style={{ color: '#fff', textShadow: '0 4px 12px rgba(0,0,0,0.8), 0 0 30px rgba(124,58,237,0.3)' }}>
+        {loading
+          ? "Loading question…"
+          : questionBank.length === 0
+            ? <span style={{ color: '#cbd5e1', fontWeight: 600 }}>No questions available.</span>
+            : (q?.prompt || "Loading…")}
+      </div>
+      <div style={{ marginTop: 8, textAlign: 'center' }}>
+        <small style={{ color: '#a5b4fc', fontSize: 13, textShadow: '0 2px 8px rgba(0,0,0,0.6)' }}>Click a country on the globe to answer</small>
+      </div>
+    </div>
+  </div>
               
-              {/* Right: Skip Button (always maintain space) */}
-              <div className="side-btn" style={{ minWidth: '140px' }}>
-                {state === "asking" && (
-                  <button onClick={nextQuestion} className="arcade-btn arcade-btn-skip" style={{ width: '100%' }}>
-                    ⏭ Skip
-                  </button>
-                )}
-              </div>
-            </div>
+              {/* Right: Skip Button (always visible) */}
+  <div className="side-btn" style={{ minWidth: '140px' }}>
+    <button onClick={nextQuestion} className="arcade-btn arcade-btn-skip" style={{ width: '100%' }}>
+      ⏭ Skip
+    </button>
+  </div>
+</div>
           )}
 
           {/* Summary Screen */}
@@ -576,25 +570,25 @@ export default function PlayGame() {
             <>
               {/* Arcade-style modal feedback */}
               {showCorrect && (
-                <div className="arcade-modal correct">
-                  <span className="arcade-modal-icon">✓</span>
-                  <p className="arcade-modal-text">Correct!</p>
-                </div>
-              )}
+  <div className="arcade-modal correct">
+    <span className="arcade-modal-icon">✓</span>
+    <p className="arcade-modal-text">Correct!</p>
+  </div>
+)}
               
               {state === "wrong" && (
-                <div className="arcade-modal wrong">
-                  <span className="arcade-modal-icon">✗</span>
-                  <p className="arcade-modal-text">Try Again!</p>
-                </div>
-              )}
+  <div className="arcade-modal wrong">
+    <span className="arcade-modal-icon">✗</span>
+    <p className="arcade-modal-text">Try Again!</p>
+  </div>
+)}
               
               {state === "locked" && (
-                <div className="arcade-modal locked">
-                  <span className="arcade-modal-icon">💀</span>
-                  <p className="arcade-modal-text">Game Over!</p>
-                </div>
-              )}
+  <div className="arcade-modal locked">
+    <span className="arcade-modal-icon">💀</span>
+    <p className="arcade-modal-text">Game Over!</p>
+  </div>
+)}
             </>
           )}
         </div>
